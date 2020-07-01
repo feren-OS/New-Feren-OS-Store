@@ -1,0 +1,40 @@
+#!/bin/sh
+
+if [ "$1" = "--terminal" ]; then
+    stty intr ''
+    echo "Please enter your password to install Steam (Sudo Password = Your Password):"
+    sudo rm -f /tmp/steam-feren-welcome-install && sudo sh -c 'apt-get install nvidia-driver-libs-i386 nvidia-vulkan-icd -y; apt-get install mesa-vulkan-drivers mesa-vulkan-drivers:i386 -y; apt-get install steam --install-recommends -y; apt-get install steam-devices -y; exit $?'
+    if [ $? -eq 0 ]; then
+        echo "t" > /tmp/steam-feren-welcome-install
+    else
+        echo "f" > /tmp/steam-feren-welcome-install
+    fi
+    exit
+fi
+cd /usr/share/feren-welcome/scripts
+if [ -f /usr/bin/gnome-terminal ]; then
+    gnome-terminal --title="Steam Installation - Welcome Screen" -- "$0" --terminal &
+    scriptdir="Steam Installation - Welcome Screen"
+elif [ -f /usr/bin/konsole ]; then
+    konsole -e "$0 --terminal" &
+else
+    xterm -e "$0 --terminal" &
+fi
+termpid=$!
+if [ -z "$scriptdir" ]; then
+    while [ ! -f /tmp/steam-feren-welcome-install ] && ps -p $termpid > /dev/null; do
+        sleep 3
+    done
+else
+    while ! wmctrl -l | grep -q "$scriptdir"; do :; done
+    while [ ! -f /tmp/steam-feren-welcome-install ] && wmctrl -l | grep -q "$scriptdir"; do
+        sleep 3
+    done
+fi
+if [ "$(cat /tmp/steam-feren-welcome-install)" = "t" ]; then
+    rm -f /tmp/steam-feren-welcome-install
+    exit 0
+else
+    rm -f /tmp/steam-feren-welcome-install
+    exit 1
+fi

@@ -1,0 +1,12 @@
+#!/usr/bin/env xdg-open
+
+[Desktop Entry]
+Terminal=false
+Type=Application
+StartupNotify=false
+Name=Store
+Exec=/usr/bin/feren-store-new
+Icon=softwarecenter
+Comment=Get applications for Feren OS
+Encoding=UTF-8
+Categories=PackageManager;GTK;System;Settings;

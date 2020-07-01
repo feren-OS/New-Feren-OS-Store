@@ -1,0 +1,14 @@
+#!/bin/sh
+
+if [ ! "$(cat /etc/feren-welcome/current-snapshot)" = "2020.04" ]; then
+    for file in /home/*; do
+        if [ ! -f "$file/.feren/changelog-optout" ] && [ -d "$file/.feren" ] && getent passwd $(echo "$file" | sed 's%/home/%%g') > /dev/null 2>&1; then
+            cp -f /usr/share/feren-welcome/feren-welcome-changelog.desktop "$file/.config/autostart/feren-welcome-changelog.desktop"
+            if [ -f "$file/.config/autostart/feren-welcome.desktop" ]; then sed -i 's/X-GNOME-Autostart-enabled=true//g' "$file/.config/autostart/feren-welcome.desktop"; echo "X-GNOME-Autostart-enabled=false" >> "$file/.config/autostart/feren-welcome.desktop"; sed -i '/^$/d' "$file/.config/autostart/feren-welcome.desktop"; fi
+            chmod +x -f "$file/.config/autostart/feren-welcome-changelog.desktop"
+            chown -h -f $(echo "$file" | sed 's%/home/%%g'):$(echo "$file" | sed 's%/home/%%g') "$file/.config/autostart/feren-welcome-changelog.desktop"
+        fi
+    done
+    echo "2020.04" > /etc/feren-welcome/current-snapshot
+fi
+exit 0

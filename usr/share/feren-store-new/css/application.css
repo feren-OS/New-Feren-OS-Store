@@ -1,0 +1,8 @@
+.logotype1 {
+    font-size: 8pt;
+    color: @theme_selected_bg_color_breeze;
+}
+
+.logotype2 {
+    font-size: 12pt;
+}

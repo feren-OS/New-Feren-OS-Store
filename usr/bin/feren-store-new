@@ -1,0 +1,590 @@
+#! /usr/bin/python3
+# -*- coding:utf-8 -*-
+#
+# Copyright 2012-2013 "Korora Project" <dev@kororaproject.org>
+# Copyright 2013 "Manjaro Linux" <support@manjaro.org>
+# Copyright 2014 Antergos
+# Copyright 2016 Ubuntu Mate
+# Copyright 2016-2018 Ubuntu Budgie Developers
+# Copyright 2016-2020 Feren OS Developers
+#
+# feren-store is free software: you can redistribute it and/or modify
+# it under the temms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# Feren Welcome Screen is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with Feren Welcome Screen. If not, see <http://www.gnu.org/licenses/>.
+#
+
+""" Store for Feren OS """
+
+import gi
+
+gi.require_version('WebKit2', '4.0')
+
+import os
+import subprocess
+import sys
+import urllib.request
+import urllib.error
+import webbrowser
+import socket
+import platform
+import json
+import shutil
+import locale
+import gettext
+import getpass
+import signal
+
+from gi.repository import WebKit2, Gtk, Gio, Gdk, GLib, Pango
+from threading import Thread
+from queue import Queue, Empty
+from notify2 import Notification, init as NotifyInit
+from os.path import expanduser
+
+import apt
+
+class SnapManagement():
+    def installsnap(self):
+        pass
+    
+class FlatpakManagement():
+    def installflatpak(self):
+        pass
+    
+class ICEManagement():
+    def addiceshortcut(self):
+        pass
+    
+class APTManagement():
+    def installapt(self):
+        pass
+    
+class DEBManagement():
+    def installdeb(self):
+        pass
+
+class AppView(WebKit2.WebView):
+
+    def __init__(self):
+        WebKit2.WebView.__init__(self)
+
+        self.connect('load-changed', self._load_changed_cb)
+        #self.connect('context-menu', self._context_menu_cb)
+
+        self.l_uri = None
+        self.status_btn = None
+        self.back_btn = None
+        #self.set_zoom_level(0.90)
+
+        self.back_signal_handler = None
+
+    def _back_action(self, data):
+        self.go_back()
+        
+    def _goto_page(self, page):
+        #file = os.path.abspath(os.path.join(translations.get_pages_path(), page+".html"))
+        file = os.path.abspath(os.path.join("/usr/share/feren-store-new/"+page+".html"))
+        uri = 'file://' + urllib.request.pathname2url(file)
+        self.load_uri(uri)
+
+    def _goto_packageview(self, packagename):
+        #file = os.path.abspath(os.path.join(translations.get_pages_path(), "packagepage.html"))
+        file = os.path.abspath("/usr/share/feren-store-new/packagepage.html")
+        uri = 'file://' + urllib.request.pathname2url(file+"?package="+packagename)
+        self.load_uri(uri)
+
+    def _push_config(self):
+        # TODO: push notification should be connected to angularjs and use a
+        # broadcast event any suitable controllers will be able to listen and
+        # respond accordingly, for now we just use jQuery to manually toggle
+        current_page = app.current_page[:-5]
+        
+        if current_page == "index":
+            self.back_btn.set_sensitive(False)
+        else:
+            self.back_btn.set_sensitive(True)
+
+        #Show Welcome banner in Store
+        #if systemstate.first_run:
+            #app.update_page('.firstrun-only', 'show')
+
+        #if not systemstate.is_online:
+            #app.update_page('.offline', 'show')
+                
+        #Toggle block buttons first
+        self.gohome_btn.handler_block(self.gohome_handle_id)
+        self.goapps_btn.handler_block(self.goapps_handle_id)
+        self.gothemes_btn.handler_block(self.gothemes_handle_id)
+        self.gowebsites_btn.handler_block(self.gowebsites_handle_id)
+        #Do their toggles and then unblock
+        self.gohome_btn.set_active(False)
+        self.goapps_btn.set_active(False)
+        self.gothemes_btn.set_active(False)
+        self.gowebsites_btn.set_active(False)
+        self.gohome_btn.handler_unblock(self.gohome_handle_id)
+        self.goapps_btn.handler_unblock(self.goapps_handle_id)
+        self.gothemes_btn.handler_unblock(self.gothemes_handle_id)
+        self.gowebsites_btn.handler_unblock(self.gowebsites_handle_id)
+
+        ### Index Page ###
+        if current_page == 'index' or current_page.startswith('recommendations'):
+            self.gohome_btn.handler_block(self.gohome_handle_id)
+            self.gohome_btn.set_active(True)
+            self.gohome_btn.handler_unblock(self.gohome_handle_id)
+        elif current_page == 'applicationspage':
+            self.goapps_btn.handler_block(self.goapps_handle_id)
+            self.goapps_btn.set_active(True)
+            self.goapps_btn.handler_unblock(self.goapps_handle_id)
+        elif current_page == 'themespage':
+            self.gothemes_btn.handler_block(self.gothemes_handle_id)
+            self.gothemes_btn.set_active(True)
+            self.gothemes_btn.handler_unblock(self.gothemes_handle_id)
+        elif current_page == 'websitespage':
+            self.gowebsites_btn.handler_block(self.gowebsites_handle_id)
+            self.gowebsites_btn.set_active(True)
+            self.gowebsites_btn.handler_unblock(self.gowebsites_handle_id)
+
+        #if current_page == 'index':
+            #systemstate.first_run = False
+            
+        self.back_signal_handler = self.back_btn.connect("clicked", self._back_action)
+
+    def _load_changed_cb(self, view, frame):
+        uri = str(self.get_uri())
+        app.current_page = uri.rsplit('/', 1)[1]
+        self._push_config()
+
+    def _context_menu_cb(self, webview, menu, event, htr, user_data=None):
+        # Disable context menu.
+        return True
+
+
+class Notifier(object):
+    INFO = 0
+    ERROR = 1
+    SUCCESS = 2
+    UPDATES = 3
+
+    def __init__(self, type, message):
+
+        if type == self.INFO:
+            icon = "dialog-information"
+        elif type == self.ERROR:
+            icon = "dialog-error"
+        elif type == self.SUCCESS:
+            icon = "object-select-symbolic"
+        elif type == self.UPDATES:
+            icon = "store-updates-pending"
+        else:
+            icon = type
+
+        self.notification = Notification(_("Store"), message, icon)
+
+    def show(self):
+        try:
+            self.notification.show()
+        except:
+            # Some error in showing notification
+            print("Failed to show notification")
+
+
+    #def get_system_info(self, webkit):
+        #dbg.stdout('Specs', 'Gathering system specifications...', 0, 3)
+
+        ### Append a failure symbol beforehand in event something goes horribly wrong.
+        ##stat_error_msg = _("Could not gather data.")
+        ##html_tag = '<a data-toggle=\'tooltip\' data-placement=\'top\' title=\'' + stat_error_msg + '\'><span class=\'fa fa-warning specs-error\'></span></a>'
+        ##for element in ['distro', 'kernel', 'motherboard', 'boot-mode', 'cpu-model', 'cpu-speed', 'arch-use',
+        ##                'arch-supported', 'memory', 'graphics', 'filesystem', 'capacity', 'allocated-space', 'free-space']:
+        ##    app.update_page('#spec'+element, 'html', html_tag)
+
+        ## Adding simple strings. Later this should be converted to translation
+        ## supported strings after referring welcome app
+        #gb_prefix = _("GB")
+        #gib_prefix = _("GiB")
+        #mb_prefix = _("MB")
+        #mib_prefix = _("MiB")
+
+        ### Root partition (where Distribution is installed) and the rest of that disk.
+        #try:
+            ### Perform calculations across units
+            #capacity_GB =   round(entire_disk/1000/1000/1000,1)
+            #capacity_GiB =  round(entire_disk/1024/1024/1024,1)
+            #allocated_GB =  round(root_size/1000/1000/1000,1)
+            #allocated_GiB = round(root_size/1024/1024/1024,1)
+            #used_GB =       round(root_used/1000/1000/1000,1)
+            #used_GiB =      round(root_used/1024/1024/1024,1)
+            #free_GB =       round(root_free/1000/1000/1000,1)
+            #free_GiB =      round(root_free/1024/1024/1024,1)
+            #other_GB =      round((entire_disk-root_size)/1000/1000/1000,1)
+            #other_GiB =     round((entire_disk-root_size)/1024/1024/1024,1)
+
+            ## Show megabytes/mebibytes (in red) if gigabytes are too small.
+            #if capacity_GB <= 1:
+                #capacity_GB = str(round(entire_disk/1000/1000,1)) + ' ' + mb_prefix
+                #capacity_GiB = str(round(entire_disk/1024/1024,1)) + ' ' + mib_prefix
+            #else:
+                #capacity_GB = str(capacity_GB) + ' ' + gb_prefix
+                #capacity_GiB = str(capacity_GiB) + ' ' + gib_prefix
+
+            #if allocated_GB <= 1:
+                #allocated_GB =  str(round(root_size/1000/1000,1)) + ' ' + mb_prefix
+                #allocated_GiB = str(round(root_size/1024/1024,1)) + ' ' + mib_prefix
+            #else:
+                #allocated_GB = str(allocated_GB) + ' ' + gb_prefix
+                #allocated_GiB = str(allocated_GiB) + ' ' + gib_prefix
+
+            #if used_GB <= 1:
+                #used_GB =  str(round(root_used/1000/1000,1)) + ' ' + mb_prefix
+                #used_GiB = str(round(root_used/1024/1024,1)) + ' ' + mib_prefix
+            #else:
+                #used_GB = str(used_GB) + ' ' + gb_prefix
+                #used_GiB = str(used_GiB) + ' ' + gib_prefix
+
+            #if free_GB <= 1:
+                #free_GB =  str(round(root_free/1000/1000,1)) + ' ' + mb_prefix
+                #free_GiB = str(round(root_free/1024/1024,1)) + ' ' + mib_prefix
+                #app.update_page('#spec-free-space', 'addClass', 'specs-error')
+            #else:
+                #free_GB = str(free_GB) + ' ' + gb_prefix
+                #free_GiB = str(free_GiB) + ' ' + gib_prefix
+
+            #if other_GB <= 1:
+                #other_GB =  str(round((entire_disk-root_size)/1000/1000,1)) + ' ' + mb_prefix
+                #other_GiB = str(round((entire_disk-root_size)/1024/1024,1)) + ' ' + mib_prefix
+            #else:
+                #other_GB = str(other_GB) + ' ' + gb_prefix
+                #other_GiB = str(other_GiB) + ' ' + gib_prefix
+
+                ### Calculate representation across physical disk
+                #disk_percent_UM_used = int(round(root_used / entire_disk * 100)) * 2
+                #disk_percent_UM_free = int(round(root_free / entire_disk * 100)) * 2
+                #disk_percent_other   = (200 - disk_percent_UM_used - disk_percent_UM_free)
+                #dbg.stdout('Specs', ' Disk: ' + root_dev, 1, 4)
+                #dbg.stdout('Specs', '  -- OS Used: ' + str(root_used) + ' bytes (' + str(disk_percent_UM_used/2) + '%)', 1, 4)
+                #dbg.stdout('Specs', '  -- OS Free: ' + str(root_free) + ' bytes (' + str(disk_percent_UM_free/2) + '%)', 1, 4)
+                #dbg.stdout('Specs', '  -- Other Partitions: ' + str(entire_disk - root_size) + ' bytes (' + str(disk_percent_other/2) + '%)', 1, 4)
+            
+        #except Exception as err:
+            #print(err)
+            #dbg.stdout('Specs', 'Failed to gather data: Storage', 0, 1)
+
+
+class WelcomeApp(object):
+    
+    def check_arguments(self):
+        self.settings_only = False
+        self.simulate_arch = None
+        self.simulate_no_connection = False
+        self.simulate_force_connection = False
+        self.simulate_type = None
+        self.jump_to_package = False
+
+        for arg in sys.argv:
+            if arg == '--help' or arg == '-h':
+                print('\nUsage: feren-store-new [arguments]')
+                #     | Command                      | Help Text                                     |
+                print('  (DEB file goes here)       Open a DEB file in the Feren Store')
+                print('  --settings                   Just open Store Settings')
+                print('  -h, --help                   Show this help text')
+                print('  --simul-arch=ARCH            Simulate a specific architecture.')
+                print('                                -- Options: i386, amd64')
+                print('  --simul-net                  Simulate a working internet connection.')
+                print('  --simul-no-net               Simulate no internet connection.')
+                print('  --simul-type=TYPE            Simulate a specific Feren OS type')
+                print('                                -- Options: stock, classic')
+                print('  (package name goes here)     Jump to an application, by its package name, in the Store')
+                print('  -V, --version                Version information')
+                print('')
+                exit()
+              
+            elif arg == "--settings":
+                print("Opening Feren Store settings...")
+                self.settings_only = True
+                
+            elif arg.startswith("--simul-arch"):
+                self.simulate_arch = arg.split('--force-arch=')[1]
+                if not self.simulate_arch == "i386" and not self.simulate_arch == "amd64":
+                    print("Unrecognised Architecture:", self.simulate_arch)
+                    exit()
+            
+            elif arg == '--force-no-net':
+                self.simulate_no_connection = True
+
+            elif arg == '--force-net':
+                self.simulate_force_connection = True
+
+            elif arg.startswith('--simul-type'):
+                self.simulate_version = arg.split('--simul-type=')[1]
+                if not self.simulate_arch == "stock" and not self.simulate_arch == "classic":
+                    print("Unrecognised Feren OS Type:", self.simulate_arch)
+                    exit()
+                    
+            elif arg == "-V" or arg == "--version":
+                print("Not implemented yet.")
+                exit()
+            
+            else:
+                print("Not implemented yet.")
+
+
+    def __init__(self):
+        
+        self.check_arguments()
+
+        self.current_page = ""
+
+        #systemstate.first_run = self._check_first_run()
+        #systemstate.first_run = True
+
+        #self.json_path = self._data_path + "/config/packages.json"
+
+        if self.jump_to_package:
+            self._start_page = "packagepage.html?package=" + self.jump_to_package
+        else:
+            self._start_page = 'index.html'
+
+        self._build_app()
+
+
+    def _build_app(self):
+        # build window
+        w = Gtk.Window()
+        w.set_position(Gtk.WindowPosition.CENTER)
+        w.set_title("Store")
+        w.set_default_size(810, 640)
+        #w.set_resizable(False)
+
+        #This allows Store to be natively recognised as an application associated with its .desktop file
+        GLib.set_prgname('/usr/bin/feren-store-new')
+        
+        back_img = Gtk.Image()
+        back_img.set_from_icon_name("go-previous-symbolic", Gtk.IconSize.BUTTON);
+
+        back_btn = Gtk.Button(image=back_img)
+        back_btn.set_sensitive(False)
+        back_btn.set_name("back-btn")
+        
+        status_img = Gtk.Image()
+        status_img.set_from_icon_name("get-hot-new-stuff", Gtk.IconSize.BUTTON);
+        status_btn = Gtk.Button(image=status_img)
+        status_btn.set_name("status-btn")
+        status_btn.hide()
+        
+        search_img = Gtk.Image()
+        search_img.set_from_icon_name("edit-find-symbolic", Gtk.IconSize.BUTTON);
+        search_btn = Gtk.Button(image=search_img)
+        search_btn.set_name("search-btn")
+        
+        mainmenu = Gtk.Menu()
+        mainmenu.append(Gtk.MenuItem("lp"))
+        mainmenu.append(Gtk.MenuItem("pl"))
+        menu_btn_img = Gtk.Image()
+        menu_btn_img.set_from_icon_name("open-menu-symbolic", Gtk.IconSize.BUTTON);
+        menu_btn = Gtk.MenuButton(image=menu_btn_img)
+        menu_btn.set_popup(mainmenu)
+        
+        self.gohome_btn = Gtk.ToggleButton(label=("Home"))
+        self.gohome_btn.set_name("gohome-btn")
+        self.gohome_btn.set_active(True)
+        self.gohome_handle_id = self.gohome_btn.connect("clicked", self._gohome_pressed)
+        
+        self.goapps_btn = Gtk.ToggleButton(label=("Applications"))
+        self.goapps_btn.set_name("goapps-btn")
+        self.goapps_handle_id = self.goapps_btn.connect("clicked", self._goapps_pressed)
+        
+        self.gothemes_btn = Gtk.ToggleButton(label=("Themes"))
+        self.gothemes_btn.set_name("gothemes-btn")
+        self.gothemes_handle_id = self.gothemes_btn.connect("clicked", self._gothemes_pressed)
+        
+        self.gowebsites_btn = Gtk.ToggleButton(label=("Websites"))
+        self.gowebsites_btn.set_name("gowebsites-btn")
+        self.gowebsites_handle_id = self.gowebsites_btn.connect("clicked", self._gowebsites_pressed)
+        
+
+        #Use a titlebar-toolbar approach
+        mainwindow = Gtk.VBox()
+        mainwindow.set_spacing(0)
+        maintoolbar = Gtk.Toolbar()
+        maintoolbar.get_style_context().add_class(Gtk.STYLE_CLASS_PRIMARY_TOOLBAR)
+        maintoolbar.get_style_context().add_class("only-toolbar")
+        maintoolbarcontents = Gtk.ToolItem()
+        maintoolbarcontents.set_expand(True)
+        maintoolbar.insert(maintoolbarcontents, 0)
+        header = Gtk.Box()
+        #maintoolbarcontents.set_border_width(2)
+        maintoolbarcontents.add(header)
+        header.set_spacing(6)
+        toolbarspacer=Gtk.Alignment()
+        
+        #Logo
+        logoimageandbox = Gtk.Box(spacing=8)
+        logotypebox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        store_logoimg = Gtk.Image()
+        store_logoimg.set_from_icon_name("softwarecenter", Gtk.IconSize.DND);
+        
+        store_logotype1 = Gtk.Label(label=("Feren OS"))
+        store_logotype1.get_style_context().add_class("logotype1")
+        store_logotype2 = Gtk.Label(label=("Store"))
+        store_logotype2.get_style_context().add_class("logotype2")
+        css_provider = Gtk.CssProvider()
+        #In case this is Feren OS Classic or another non-Plasma-based Desktop running the Feren Store
+        css_provider.load_from_path('/usr/share/feren-store-new/css/fallback.css')
+        #Add some spizzas to the Feren Store logo too
+        css_provider.load_from_path('/usr/share/feren-store-new/css/application.css')
+        screen = Gdk.Screen.get_default()
+        style_context = Gtk.StyleContext()
+        style_context.add_provider_for_screen(screen, css_provider,
+                                          Gtk.STYLE_PROVIDER_PRIORITY_USER)
+        
+        store_logotype1_box = Gtk.Box()
+        store_logotype2_box = Gtk.Box()
+        store_logotype1_box.pack_start(store_logotype1, False, False, 0)
+        store_logotype2_box.pack_start(store_logotype2, False, False, 0)
+        
+        logotypebox.pack_start(store_logotype1_box, False, False, 0)
+        logotypebox.pack_end(store_logotype2_box, False, False, 0)
+        logoimageandbox.pack_start(store_logoimg, False, False, 0)
+        logoimageandbox.pack_end(logotypebox, False, False, 0)
+            
+        header.pack_start(back_btn, False, True, 0)
+        header.pack_start(logoimageandbox, False, True, 0)
+        header.pack_start(toolbarspacer, True, True, 0)
+        header.pack_end(menu_btn, False, True, 0)
+        header.pack_end(search_btn, False, True, 0)
+        header.pack_end(status_btn, False, True, 0)
+        header.pack_end(self.gowebsites_btn, False, True, 0)
+        header.pack_end(self.gothemes_btn, False, True, 0)
+        header.pack_end(self.goapps_btn, False, True, 0)
+        header.pack_end(self.gohome_btn, False, True, 0)
+
+        # build webkit container
+        mv = AppView()
+        mv.set_zoom_level(1.0)
+
+        mv.status_btn = status_btn
+        mv.back_btn = back_btn
+        mv.gohome_btn = self.gohome_btn
+        mv.goapps_btn = self.goapps_btn
+        mv.gothemes_btn = self.gothemes_btn
+        mv.gowebsites_btn = self.gowebsites_btn
+        #handle_id is needed to block events as otherwise the button active state changes cause button press events to occur (for whatever stupid reason) which ultimately leads to a Stack Overflow as the event code retriggers the event by triggering the button press yet again looping the cycle indefinitely
+        mv.gohome_handle_id = self.gohome_handle_id
+        mv.goapps_handle_id = self.goapps_handle_id
+        mv.gothemes_handle_id = self.gothemes_handle_id
+        mv.gowebsites_handle_id = self.gowebsites_handle_id
+        
+        #status_btn.connect("clicked", self._show_status)
+
+        # load our index file
+        #file = os.path.abspath(os.path.join(translations.get_pages_path(), self._start_page))
+        file = os.path.abspath(os.path.join("/usr/share/feren-store-new/"+self._start_page))
+        uri = 'file://' + urllib.request.pathname2url(file)
+        mv.load_uri(uri)
+
+        # build scrolled window widget and add our appview container
+        sw = Gtk.ScrolledWindow()
+        sw.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        sw.add(mv)
+
+        # build a an autoexpanding box and add our scrolled window
+        b = Gtk.Box(homogeneous=False, spacing=0)
+        b.pack_start(sw, expand=True, fill=True, padding=0)
+
+        # add the box to the parent window and show
+        mainwindow.pack_start(maintoolbar, False, True, 0)
+        mainwindow.pack_end(b, True, True, 0)
+        w.add(mainwindow)
+        
+        w.connect('delete-event', self.close)
+        w.show_all()
+
+        self._window = w
+        self.webkit = mv
+
+    def run(self):
+        signal.signal(signal.SIGINT, signal.SIG_DFL)
+        Gtk.main()
+
+    def _gohome_pressed(self, gtk_widget):
+        self.webkit._goto_page("index")
+
+    def _goapps_pressed(self, gtk_widget):
+        self.webkit._goto_page("applicationspage")
+
+    def _gothemes_pressed(self, gtk_widget):
+        self.webkit._goto_page("themespage")
+
+    def _gowebsites_pressed(self, gtk_widget):
+        self.webkit._goto_page("websitespage")
+
+    def close(self, p1 = None, p2 = None):
+        Gtk.main_quit(p1, p2)
+
+    def update_page(self, element, function, parm1=None, parm2=None):
+        """ Runs a JavaScript jQuery function on the page,
+            ensuring correctly parsed quotes. """
+        if parm1 and parm2:
+            self.run_javascript('$("' + element + '").' + function + "('" + parm1.replace("'", '\\\'') + "', '" + parm2.replace("'", '\\\'') + "')")
+        if parm1:
+            self.run_javascript('$("' + element + '").' + function + "('" + parm1.replace("'", '\\\'') + "')")
+        else:
+            self.run_javascript('$("' + element + '").' + function + '()')
+
+    def run_javascript(self, script):
+        """
+        Runs a JavaScript function on the page, regardless of which thread it is called from.
+        GTK+ operations must be performed on the same thread to prevent crashes.
+        """
+        GLib.idle_add(self._run_javascript, script)
+
+    def _run_javascript(self, script):
+        """
+        Runs a JavaScript script on the page when invoked from run_javascript()
+        """
+        self.webkit.run_javascript(script)
+        return GLib.SOURCE_REMOVE
+
+    def _check_first_run(self):
+        file = os.path.join(localdir, 'firstrun')
+        if os.path.exists(file):
+            return False
+        
+        os.mknod(file)
+        return True
+
+
+def desktop_files():
+    """ dummy function that is used by the translation system
+        to capture the strings in the desktop/*.desktop files
+        so that these can be updated when feren-store is
+        built with translated Names and Comments
+    """
+
+    Name =      _("Store")
+    Comment =   _("Get applications for Feren OS")
+
+
+if __name__ == "__main__":
+
+    # Local data directory to store backup info
+    localdir = os.path.expanduser('~') + '/.config/feren-store'
+    if not os.path.isdir(localdir):
+        os.makedirs(localdir)
+
+    # Init notification
+    try:
+        NotifyInit("feren-store-new")
+    except:
+        print("Failed to initialize notifier")
+
+    app = WelcomeApp()
+    app.run()

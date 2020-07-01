@@ -375,22 +375,23 @@ class WelcomeApp(object):
         
         status_img = Gtk.Image()
         status_img.set_from_icon_name("get-hot-new-stuff", Gtk.IconSize.BUTTON);
-        status_btn = Gtk.Button(image=status_img)
+        status_btn = Gtk.ToggleButton(image=status_img)
         status_btn.set_name("status-btn")
         status_btn.hide()
         
         search_img = Gtk.Image()
         search_img.set_from_icon_name("edit-find-symbolic", Gtk.IconSize.BUTTON);
-        search_btn = Gtk.Button(image=search_img)
+        search_btn = Gtk.ToggleButton(image=search_img)
         search_btn.set_name("search-btn")
         
-        mainmenu = Gtk.Menu()
-        mainmenu.append(Gtk.MenuItem("lp"))
-        mainmenu.append(Gtk.MenuItem("pl"))
+        mainmenu = Gio.Menu()
+        mainmenu.append("lp")
+        mainmenu.append("pl")
         menu_btn_img = Gtk.Image()
         menu_btn_img.set_from_icon_name("open-menu-symbolic", Gtk.IconSize.BUTTON);
         menu_btn = Gtk.MenuButton(image=menu_btn_img)
-        menu_btn.set_popup(mainmenu)
+        menu_btn.set_use_popover(False)
+        menu_btn.set_menu_model(mainmenu)
         
         self.gohome_btn = Gtk.ToggleButton(label=("Home"))
         self.gohome_btn.set_name("gohome-btn")
@@ -435,15 +436,6 @@ class WelcomeApp(object):
         store_logotype1.get_style_context().add_class("logotype1")
         store_logotype2 = Gtk.Label(label=("Store"))
         store_logotype2.get_style_context().add_class("logotype2")
-        css_provider = Gtk.CssProvider()
-        #In case this is Feren OS Classic or another non-Plasma-based Desktop running the Feren Store
-        css_provider.load_from_path('/usr/share/feren-store-new/css/fallback.css')
-        #Add some spizzas to the Feren Store logo too
-        css_provider.load_from_path('/usr/share/feren-store-new/css/application.css')
-        screen = Gdk.Screen.get_default()
-        style_context = Gtk.StyleContext()
-        style_context.add_provider_for_screen(screen, css_provider,
-                                          Gtk.STYLE_PROVIDER_PRIORITY_USER)
         
         store_logotype1_box = Gtk.Box()
         store_logotype2_box = Gtk.Box()
@@ -465,6 +457,71 @@ class WelcomeApp(object):
         header.pack_end(self.gothemes_btn, False, True, 0)
         header.pack_end(self.goapps_btn, False, True, 0)
         header.pack_end(self.gohome_btn, False, True, 0)
+        
+        
+        #build the application details header
+        box_application_header = Gtk.Box()
+        box_application_header.get_style_context().add_class("only-toolbar")
+        box_application_namedesc = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        app_iconimg = Gtk.Image()
+        app_iconimg.set_from_icon_name("google-chrome", Gtk.IconSize.DIALOG);
+        app_title = Gtk.Label(label=("APPLICATIONNAME"))
+        app_title.get_style_context().add_class("14scale")
+        app_desc = Gtk.Label(label=("APPLICATIONDESC"))
+        app_mgmt_button = Gtk.Stack()
+        app_mgmt_installbtn = Gtk.Button(label=("Install"))
+        app_mgmt_installunavailbtn = Gtk.Button(label=("Install..."))
+        app_mgmt_removebtn = Gtk.Button(label=("Remove"))
+        app_mgmt_updatebtn = Gtk.Button(label=("Update"))
+        
+        #Make them all colourful
+        app_mgmt_installbtn.get_style_context().add_class(Gtk.STYLE_CLASS_SUGGESTED_ACTION)
+        app_mgmt_installunavailbtn.get_style_context().add_class(Gtk.STYLE_CLASS_SUGGESTED_ACTION)
+        app_mgmt_updatebtn.get_style_context().add_class(Gtk.STYLE_CLASS_SUGGESTED_ACTION)
+        app_mgmt_removebtn.get_style_context().add_class(Gtk.STYLE_CLASS_DESTRUCTIVE_ACTION)
+        app_source_dropdown = Gtk.ComboBox()
+        
+        app_mgmt_button.add_named(app_mgmt_installbtn, "Standard")
+        app_mgmt_button.add_named(app_mgmt_installunavailbtn, "InstallRepo")
+        app_mgmt_button.add_named(app_mgmt_removebtn, "Remove")
+        app_mgmt_button.set_visible_child(app_mgmt_installbtn)
+        
+        centering_titledesc_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        centering_titledesc_box.pack_start(box_application_namedesc, False, True, 0)
+        centering_titledesc_box.set_center_widget(box_application_namedesc)
+        centering_btnactions_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        inside_btnactions_box = Gtk.Box()
+        centering_btnactions_box.pack_start(inside_btnactions_box, False, True, 0)
+        centering_btnactions_box.set_center_widget(inside_btnactions_box)
+        inside_btnactions_box.pack_start(app_source_dropdown, False, False, 4)
+        inside_btnactions_box.pack_start(app_mgmt_updatebtn, False, False, 4)
+        inside_btnactions_box.pack_start(app_mgmt_button, False, False, 4)
+        
+        app_title_box = Gtk.Box()
+        app_desc_box = Gtk.Box()
+        app_title_box.pack_start(app_title, False, False, 0)
+        app_desc_box.pack_start(app_desc, False, False, 0)
+        box_application_namedesc.pack_start(app_title_box, False, False, 0)
+        box_application_namedesc.pack_end(app_desc_box, False, False, 0)
+        
+        box_application_header.pack_start(app_iconimg, False, False, 8)
+        box_application_header.pack_start(centering_titledesc_box, False, True, 4)
+        box_application_header.pack_end(centering_btnactions_box, False, True, 4)
+        
+        app_iconimg.set_margin_top(8)
+        app_iconimg.set_margin_bottom(8)
+        
+        
+        css_provider = Gtk.CssProvider()
+        #In case this is Feren OS Classic or another non-Plasma-based Desktop running the Feren Store
+        css_provider.load_from_path('/usr/share/feren-store-new/css/fallback.css')
+        #Add some spizzas to the Feren Store logo too
+        css_provider.load_from_path('/usr/share/feren-store-new/css/application.css')
+        screen = Gdk.Screen.get_default()
+        style_context = Gtk.StyleContext()
+        style_context.add_provider_for_screen(screen, css_provider,
+                                          Gtk.STYLE_PROVIDER_PRIORITY_USER)
+        
 
         # build webkit container
         mv = AppView()
@@ -501,6 +558,7 @@ class WelcomeApp(object):
 
         # add the box to the parent window and show
         mainwindow.pack_start(maintoolbar, False, True, 0)
+        mainwindow.pack_start(box_application_header, False, True, 0)
         mainwindow.pack_end(b, True, True, 0)
         w.add(mainwindow)
         

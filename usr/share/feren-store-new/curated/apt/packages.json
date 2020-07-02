@@ -1,32 +1,32 @@
 {
-  "google-chrome-stable" : {
-    "realname" : ["Google Chrome"],
-    "iconurl" : ["https://lh3.googleusercontent.com/nYhPnY2I-e9rpqnid9u9aAODz4C04OycEGxqHG5vxFnA35OGmLMrrUmhM9eaHKJ7liB-=w300"],
-    "shortdescription": ["The browser by Google"],
-    "description": ["Google Chrome is a browser that combines a minimal design with sophisticated technology to make the web faster, safer and easier."],
-    "author": ["Google"],
-    "bugreporturl": ["https://support.google.com/chrome/?p=feedback"],
-    "website": ["https://chrome.google.com/"],
-    "category": ["browsers"],
-    "aptsource": ["google-chrome"],
-    "image1": ["https://www.gstatic.com/chrome/appstream/chrome-2.png"],
-    "image2": [""],
-    "image3": [""],
-    "tos": ["https://www.google.com/chrome/terms/"]
+  "google-chrome-stable": {
+    "realname": "Google Chrome",
+    "iconurl": "https://lh3.googleusercontent.com/nYhPnY2I-e9rpqnid9u9aAODz4C04OycEGxqHG5vxFnA35OGmLMrrUmhM9eaHKJ7liB-=w256",
+    "shortdescription": "The browser by Google",
+    "description": "Google Chrome is a browser that combines a minimal design with sophisticated technology to make the web faster, safer and easier.",
+    "author": "Google",
+    "bugreporturl": "https://support.google.com/chrome/?p=feedback",
+    "website": "https://chrome.google.com/",
+    "category": "browsers",
+    "aptsource": "google-chrome",
+    "image1": "https://www.gstatic.com/chrome/appstream/chrome-2.png",
+    "image2": "",
+    "image3": "",
+    "tos": "https://www.google.com/chrome/terms/"
   },
-  "feren-store" : {
-    "realname" : ["Feren Store"],
-    "iconurl" : ["https://img.icons8.com/cotton/2x/online-store.png"],
-    "shortdescription": ["The original Feren OS Store"],
-    "description": ["The old Feren OS Store"],
-    "author": ["Feren OS"],
-    "bugreporturl": ["https://github.com/feren-OS/Bug-Reporting-Center/issues/"],
-    "website": ["https://ferenos.weebly.com/"],
-    "category": ["system"],
-    "aptsource": [""],
-    "image1": [""],
-    "image2": [""],
-    "image3": [""],
-    "tos": [""]
+  "feren-store": {
+    "realname": "Feren Store",
+    "iconurl": "file:///usr/share/icons/Inspire/256/apps/feren-store.png",
+    "shortdescription": "The original Feren OS Store",
+    "description": "The old Feren OS Store",
+    "author": "Feren OS",
+    "bugreporturl": "https://github.com/feren-OS/Bug-Reporting-Center/issues/",
+    "website": "https://ferenos.weebly.com/",
+    "category": "system",
+    "aptsource": "",
+    "image1": "",
+    "image2": "",
+    "image3": "",
+    "tos": ""
   }
 }

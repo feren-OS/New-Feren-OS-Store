@@ -43,13 +43,39 @@ import gettext
 import getpass
 import signal
 
-from gi.repository import WebKit2, Gtk, Gio, Gdk, GLib, Pango, GObject
+from gi.repository import WebKit2, Gtk, Gio, Gdk, GLib, Pango, GObject, GdkPixbuf
 from threading import Thread
 from queue import Queue, Empty
 from notify2 import Notification, init as NotifyInit
 from os.path import expanduser
 
 import apt
+
+class GlobalVariables(object):
+    def __init__(self):
+        self.storagetemplocation = "/tmp/feren-store-"+getpass.getuser()
+        #Make the folder if it doesn't exist
+        if not os.path.isdir("/tmp/feren-store-"+getpass.getuser()):
+            os.mkdir("/tmp/feren-store-"+getpass.getuser())
+
+
+class ApplicationSourceTranslator():
+    #Class for all things translating an application source internal name into human readable, keyrings and repositories to add
+    
+    def TranslateToHumanReadable(appsourceintname):
+        if appsourceintname == "standard":
+            return "Standard Install"
+        elif appsourceintname == "google-chrome":
+            return "Google Chrome Repository"
+        elif appsourceintname == "snapstore":
+            return "Snapcraft"
+        elif appsourceintname == "flatpak-flathub":
+            return "Flathub"
+        else:
+            return appsourceintname
+        #TODO: Add more
+        
+
 
 class JSONReader(object):
     '''
@@ -68,17 +94,21 @@ class JSONReader(object):
         #    self.flatpakdata = json.load(file)
         #with open("/usr/share/feren-store-new/curated/ice/packages.json") as file:
         #    self.icedata = json.load(file)
-        #with open("/usr/share/feren-store-new/curated/sources/packages.json") as file:
-        #    self.availablesources = json.load(file)
+        with open("/usr/share/feren-store-new/curated/sources/packages.json") as file:
+            self.availablesources = json.load(file)
 
     def getPackageInfo(self, packagename):
         #TODO: Change this to have an extra argument for which package type this should be for
         try:
-            return [str(self.aptdata[packagename]["realname"][0]), str(self.aptdata[packagename]["shortdescription"][0])]
+            return self.aptdata[packagename]["realname"], self.aptdata[packagename]["shortdescription"], self.aptdata[packagename]["iconurl"]
         except KeyError:
-            return None
+            return None, None, None
 
-
+    def getSources(self, packagename):
+        try:
+            return [self.availablesources[packagename]["apt"], self.availablesources[packagename]["flatpak"], self.availablesources[packagename]["snap"]], self.availablesources[packagename]["order-of-importance"]
+        except KeyError:
+            return None, None
 
 class SnapManagement():
     def installsnap(self):
@@ -101,16 +131,37 @@ class DEBManagement():
         pass
     
 class PackageHeader():    
-    def changesources(package, comboboxobj):
-        #Temporary combobox populating code
+    def changesources(sources, sourcesorder, comboboxobj):
         iface_list_store = Gtk.ListStore(GObject.TYPE_STRING)
-        iface_list_store.append(["hello, "])
-        iface_list_store.append(["world."])
+        amount_of_sources = 0
+        
+        for sourcename in sourcesorder:
+            if sourcename == "apt":
+                #apt source
+                friendlysourcename = ApplicationSourceTranslator.TranslateToHumanReadable(sources[0])
+                if friendlysourcename:
+                    iface_list_store.append([friendlysourcename])
+                    amount_of_sources += 1
+            elif sourcename == "flatpak":
+                #flatpak source
+                friendlysourcename = ApplicationSourceTranslator.TranslateToHumanReadable(sources[1])
+                if friendlysourcename:
+                    iface_list_store.append([friendlysourcename])
+                    amount_of_sources += 1
+            elif sourcename == "snap":
+                #snap source
+                friendlysourcename = ApplicationSourceTranslator.TranslateToHumanReadable(sources[2])
+                if friendlysourcename:
+                    iface_list_store.append([friendlysourcename])
+                    amount_of_sources += 1
+        
         comboboxobj.set_model(iface_list_store)
         comboboxobj.set_active(0)
-        cell = Gtk.CellRendererText()
-        comboboxobj.pack_start(cell, True)
-        comboboxobj.add_attribute(cell, "text", 0)
+        if amount_of_sources <= 1:
+            comboboxobj.set_visible(False)
+        else:
+            comboboxobj.set_visible(True)
+        
 
 class AppView(WebKit2.WebView):
 
@@ -126,6 +177,8 @@ class AppView(WebKit2.WebView):
         #self.set_zoom_level(0.90)
 
         self.back_signal_handler = None
+        
+        self.current_package = ""
 
     def _back_action(self, data):
         self.go_back()
@@ -138,7 +191,7 @@ class AppView(WebKit2.WebView):
 
     def _goto_packageview(self, packagename):
         #file = os.path.abspath(os.path.join(translations.get_pages_path(), "packagepage.html"))
-        file = os.path.abspath("/usr/share/feren-store-new/packagepage.html?google-chrome-stable")
+        file = os.path.abspath("/usr/share/feren-store-new/packagepage.html")
         uri = 'file://' + urllib.request.pathname2url(file+"?package="+packagename)
         self.load_uri(uri)
 
@@ -146,9 +199,9 @@ class AppView(WebKit2.WebView):
         # TODO: push notification should be connected to angularjs and use a
         # broadcast event any suitable controllers will be able to listen and
         # respond accordingly, for now we just use jQuery to manually toggle
-        current_page = app.current_page[:-5]
+        current_page = app.current_page
         
-        if current_page == "index":
+        if current_page == "index.html":
             self.back_btn.set_sensitive(False)
         else:
             self.back_btn.set_sensitive(True)
@@ -176,7 +229,7 @@ class AppView(WebKit2.WebView):
         self.gowebsites_btn.handler_unblock(self.gowebsites_handle_id)
 
         ### Index Page ###
-        if current_page == 'index' or current_page.startswith('recommendations'):
+        if current_page == 'index.html' or current_page.startswith('recommendations.html'):
             self.gohome_btn.handler_block(self.gohome_handle_id)
             self.gohome_btn.set_active(True)
             self.gohome_btn.handler_unblock(self.gohome_handle_id)
@@ -186,7 +239,7 @@ class AppView(WebKit2.WebView):
             self.gothemes_btn.set_visible(True)
             self.gowebsites_btn.set_visible(True)
             self.box_application_header.set_visible(False)
-        elif current_page == 'applicationspage':
+        elif current_page == 'applicationspage.html':
             self.goapps_btn.handler_block(self.goapps_handle_id)
             self.goapps_btn.set_active(True)
             self.goapps_btn.handler_unblock(self.goapps_handle_id)
@@ -196,7 +249,7 @@ class AppView(WebKit2.WebView):
             self.gothemes_btn.set_visible(True)
             self.gowebsites_btn.set_visible(True)
             self.box_application_header.set_visible(False)
-        elif current_page == 'themespage':
+        elif current_page == 'themespage.html':
             self.gothemes_btn.handler_block(self.gothemes_handle_id)
             self.gothemes_btn.set_active(True)
             self.gothemes_btn.handler_unblock(self.gothemes_handle_id)
@@ -206,7 +259,7 @@ class AppView(WebKit2.WebView):
             self.gothemes_btn.set_visible(True)
             self.gowebsites_btn.set_visible(True)
             self.box_application_header.set_visible(False)
-        elif current_page == 'websitespage':
+        elif current_page == 'websitespage.html':
             self.gowebsites_btn.handler_block(self.gowebsites_handle_id)
             self.gowebsites_btn.set_active(True)
             self.gowebsites_btn.handler_unblock(self.gowebsites_handle_id)
@@ -216,16 +269,47 @@ class AppView(WebKit2.WebView):
             self.gothemes_btn.set_visible(True)
             self.gowebsites_btn.set_visible(True)
             self.box_application_header.set_visible(False)
-        elif current_page.startswith('packagepage'):
+        elif current_page.startswith('packagepage.html'):
             self.gohome_btn.set_visible(False)
             self.goapps_btn.set_visible(False)
             self.gothemes_btn.set_visible(False)
             self.gowebsites_btn.set_visible(False)
             self.box_application_header.set_visible(True)
             
-            jsonutility = JSONReader()
-            self.app_title.set_label(jsonutility.getPackageInfo('google-chrome-stable')[0])
-            self.app_desc.set_label(jsonutility.getPackageInfo('google-chrome-stable')[1])
+            packagetoview = current_page.split('packagepage.html?package=')[1]
+            
+            if packagetoview != self.current_package:
+                jsonutility = JSONReader()
+                
+                app_title, app_desc, app_iconurl = jsonutility.getPackageInfo(packagetoview)
+                self.app_title.set_label(app_title)
+                self.app_desc.set_label(app_desc)
+                
+                templocation=GlobalVariables().storagetemplocation
+                
+                allocation = self.app_iconimg.get_allocation()
+                desired_width = allocation.width
+                desired_height = allocation.height
+                if not app_iconurl.startswith("file://"):
+                    #Download the application icon
+                    if not os.path.isfile(templocation+"/"+packagetoview+"-icon"):
+                        urllib.request.urlretrieve(app_iconurl, templocation+"/"+packagetoview+"-icon")
+                    #Set it as the icon in the Store
+                    icon_pixbuf = GdkPixbuf.Pixbuf.new_from_file(templocation+"/"+packagetoview+"-icon")
+                else:
+                    #Set it as the icon in the Store
+                    icon_pixbuf = GdkPixbuf.Pixbuf.new_from_file(app_iconurl.split('file://')[1])
+                icon_pixbuf = icon_pixbuf.scale_simple(desired_width, desired_height, GdkPixbuf.InterpType.BILINEAR)
+                self.app_iconimg.set_from_pixbuf(icon_pixbuf)
+                
+                #Update the sources combobox
+                app_sourceslist, app_sourcesorder = jsonutility.getSources(packagetoview)
+                
+                PackageHeader.changesources(app_sourceslist, app_sourcesorder, self.app_source_dropdown)
+                
+                
+                
+                self.current_package = packagetoview
 
         #if current_page == 'index':
             #systemstate.first_run = False
@@ -386,7 +470,7 @@ class WelcomeApp(object):
                 self.settings_only = True
                 
             elif arg.startswith("--simul-arch"):
-                self.simulate_arch = arg.split('--force-arch=')[1]
+                self.simulate_arch = arg.split('--simul-arch=')[1]
                 if not self.simulate_arch == "i386" and not self.simulate_arch == "amd64":
                     print("Unrecognised Architecture:", self.simulate_arch)
                     exit()
@@ -458,8 +542,8 @@ class WelcomeApp(object):
         search_btn.set_name("search-btn")
         
         mainmenu = Gio.Menu()
-        mainmenu.append("lp")
-        mainmenu.append("pl")
+        mainmenu.append("hello")
+        mainmenu.append("world")
         menu_btn_img = Gtk.Image()
         menu_btn_img.set_from_icon_name("open-menu-symbolic", Gtk.IconSize.BUTTON);
         menu_btn = Gtk.MenuButton(image=menu_btn_img)
@@ -561,6 +645,11 @@ class WelcomeApp(object):
         app_mgmt_removebtn.get_style_context().add_class(Gtk.STYLE_CLASS_DESTRUCTIVE_ACTION)
         app_source_dropdown = Gtk.ComboBox()
         
+        #NOTE TO SELF: NEVER put this in the dropdown refreshing code - it'll cause duplicated labels
+        cell = Gtk.CellRendererText()
+        app_source_dropdown.pack_start(cell, True)
+        app_source_dropdown.add_attribute(cell, "text", 0)
+        
         app_mgmt_button.add_named(app_mgmt_installbtn, "Standard")
         app_mgmt_button.add_named(app_mgmt_installunavailbtn, "InstallRepo")
         app_mgmt_button.add_named(app_mgmt_removebtn, "Remove")
@@ -588,8 +677,6 @@ class WelcomeApp(object):
         
         app_iconimg.set_margin_top(8)
         app_iconimg.set_margin_bottom(8)
-        
-        PackageHeader.changesources('feren-store', app_source_dropdown)
         
         css_provider = Gtk.CssProvider()
         #In case this is Feren OS Classic or another non-Plasma-based Desktop running the Feren Store
@@ -622,6 +709,8 @@ class WelcomeApp(object):
         
         mv.app_title = app_title
         mv.app_desc = app_desc
+        mv.app_iconimg = app_iconimg
+        mv.app_source_dropdown = app_source_dropdown
         
         #status_btn.connect("clicked", self._show_status)
 
@@ -729,6 +818,8 @@ if __name__ == "__main__":
         NotifyInit("feren-store-new")
     except:
         print("Failed to initialize notifier")
+        
+    GlobalVariables()
 
     app = WelcomeApp()
     app.run()

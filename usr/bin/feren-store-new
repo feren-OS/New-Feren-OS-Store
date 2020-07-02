@@ -103,6 +103,13 @@ class JSONReader(object):
             return self.aptdata[packagename]["realname"], self.aptdata[packagename]["shortdescription"], self.aptdata[packagename]["iconurl"]
         except KeyError:
             return None, None, None
+        
+    def getPackageSiteInfo(self, packagename):
+        #TODO: Change this to have an extra argument for which package type this should be for
+        try:
+            return self.aptdata[packagename]["description"], self.aptdata[packagename]["author"], self.aptdata[packagename]["bugreporturl"], self.aptdata[packagename]["website"], self.aptdata[packagename]["tos"], self.aptdata[packagename]["category"], self.aptdata[packagename]["image1"], self.aptdata[packagename]["image2"], self.aptdata[packagename]["image3"]
+        except KeyError:
+            return None, None, None
 
     def getSources(self, packagename):
         try:
@@ -307,7 +314,17 @@ class AppView(WebKit2.WebView):
                 
                 PackageHeader.changesources(app_sourceslist, app_sourcesorder, self.app_source_dropdown)
                 
-                
+                #Update in-page items
+                app_description, app_author, app_bugreporturl, app_website, app_tos, app_category, app_image1, app_image2, app_image3 = jsonutility.getPackageSiteInfo(packagetoview)
+                app.update_page('#description', 'html', app_description)
+                app.update_page('#author', 'html', app_author)
+                app.update_page('#bugreporturl', 'html', app_bugreporturl)
+                app.update_page('#website', 'html', app_website)
+                app.update_page('#tos', 'html', app_tos)
+                app.update_page('#category', 'html', app_category)
+                app.update_page('#image1', 'src', app_image1)
+                app.update_page('#image2', 'src', app_image2)
+                app.update_page('#image3', 'src', app_image3)
                 
                 self.current_package = packagetoview
 
@@ -768,7 +785,11 @@ class WelcomeApp(object):
         if parm1 and parm2:
             self.run_javascript('$("' + element + '").' + function + "('" + parm1.replace("'", '\\\'') + "', '" + parm2.replace("'", '\\\'') + "')")
         if parm1:
-            self.run_javascript('$("' + element + '").' + function + "('" + parm1.replace("'", '\\\'') + "')")
+            if not function == 'src':
+                self.run_javascript('$("' + element + '").' + function + "('" + parm1.replace("'", '\\\'') + "')")
+            else:
+                #Image replacing requires a special code modification
+                self.run_javascript('$("' + element + '").attr' + "('src', '" + parm1.replace("'", '\\\'') + "')")
         else:
             self.run_javascript('$("' + element + '").' + function + '()')
 

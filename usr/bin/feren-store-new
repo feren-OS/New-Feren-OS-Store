@@ -285,9 +285,9 @@ class AppView(WebKit2.WebView):
             
             packagetoview = current_page.split('packagepage.html?package=')[1]
             
-            if packagetoview != self.current_package:
-                jsonutility = JSONReader()
-                
+            jsonutility = JSONReader()
+            
+            if packagetoview != self.current_package:                
                 app_title, app_desc, app_iconurl = jsonutility.getPackageInfo(packagetoview)
                 self.app_title.set_label(app_title)
                 self.app_desc.set_label(app_desc)
@@ -314,19 +314,19 @@ class AppView(WebKit2.WebView):
                 
                 PackageHeader.changesources(app_sourceslist, app_sourcesorder, self.app_source_dropdown)
                 
-                #Update in-page items
-                app_description, app_author, app_bugreporturl, app_website, app_tos, app_category, app_image1, app_image2, app_image3 = jsonutility.getPackageSiteInfo(packagetoview)
-                app.update_page('#description', 'html', app_description)
-                app.update_page('#author', 'html', app_author)
-                app.update_page('#bugreporturl', 'html', app_bugreporturl)
-                app.update_page('#website', 'html', app_website)
-                app.update_page('#tos', 'html', app_tos)
-                app.update_page('#category', 'html', app_category)
-                app.update_page('#image1', 'src', app_image1)
-                app.update_page('#image2', 'src', app_image2)
-                app.update_page('#image3', 'src', app_image3)
-                
                 self.current_package = packagetoview
+                
+            #Update in-page items
+            app_description, app_author, app_bugreporturl, app_website, app_tos, app_category, app_image1, app_image2, app_image3 = jsonutility.getPackageSiteInfo(packagetoview)
+            app.update_page('#description', 'html', app_description)
+            app.update_page('#author', 'html', app_author)
+            app.update_page('#bugreporturl', 'html', app_bugreporturl)
+            app.update_page('#website', 'html', app_website)
+            app.update_page('#tos', 'html', app_tos)
+            app.update_page('#category', 'html', app_category)
+            app.update_page('#image1', 'src', app_image1)
+            app.update_page('#image2', 'src', app_image2)
+            app.update_page('#image3', 'src', app_image3)
 
         #if current_page == 'index':
             #systemstate.first_run = False

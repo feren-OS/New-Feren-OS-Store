@@ -1,0 +1,23 @@
+/* The software will change these on page load */
+:root {
+    --bg: #F1F1F1;
+    --text: #000000;
+    --selected_bg: #006AFF;
+    --selected_text: #FFFFFF;
+    --button_bg: linear-gradient(to bottom, #EEEEEE, #EEEEEE);
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  color: var(--text);
+  /* Behave more like an application by
+   * preventing text highlighting / dragging. */
+  -webkit-user-select: none;
+  cursor: default;
+}
+
+body {
+    background-color: var(--bg);
+}

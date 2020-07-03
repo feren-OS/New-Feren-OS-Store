@@ -4,7 +4,7 @@
 # Copyright 2012-2013 "Korora Project" <dev@kororaproject.org>
 # Copyright 2013 "Manjaro Linux" <support@manjaro.org>
 # Copyright 2014 Antergos
-# Copyright 2016 Ubuntu Mate
+# Copyright 2016-2020 Ubuntu Mate
 # Copyright 2016-2018 Ubuntu Budgie Developers
 # Copyright 2016-2020 Feren OS Developers
 #
@@ -42,6 +42,7 @@ import locale
 import gettext
 import getpass
 import signal
+import colorsys
 
 from gi.repository import WebKit2, Gtk, Gio, Gdk, GLib, Pango, GObject, GdkPixbuf
 from threading import Thread
@@ -174,6 +175,9 @@ class AppView(WebKit2.WebView):
 
     def __init__(self):
         WebKit2.WebView.__init__(self)
+        
+        # Set WebKit background to the same as GTK
+        self.set_background_color(Gdk.RGBA(0, 0, 0, 0))
 
         self.connect('load-changed', self._load_changed_cb)
         self.connect('context-menu', self._context_menu_cb)
@@ -186,6 +190,77 @@ class AppView(WebKit2.WebView):
         self.back_signal_handler = None
         
         self.current_package = ""
+        
+    def refresh_gtk_colors(self):
+        """
+        Updates the CSS on the page to use the colours from GTK.
+        """
+        window = Gtk.Window()
+        style_context = window.get_style_context()
+
+        def _rgba_to_hex(color):
+           """
+           Return hexadecimal string for :class:`Gdk.RGBA` `color`.
+           """
+           return "#{0:02x}{1:02x}{2:02x}".format(
+                                            int(color.red   * 255),
+                                            int(color.green * 255),
+                                            int(color.blue  * 255))
+
+        def _get_color(style_context, preferred_color, fallback_color):
+            color = _rgba_to_hex(style_context.lookup_color(preferred_color)[1])
+            if color == "#000000":
+                color = _rgba_to_hex(style_context.lookup_color(fallback_color)[1])
+            return color
+
+        def _get_hex_variant(string, offset):
+            """
+            Converts hex input #RRGGBB to RGB and HLS to increase lightness independently
+            """
+            string = string.lstrip("#")
+            rgb = list(int(string[i:i+2], 16) for i in (0, 2 ,4))
+
+            # colorsys module converts to HLS to brighten/darken
+            hls = colorsys.rgb_to_hls(rgb[0], rgb[1], rgb[2])
+            newbright = hls[1] + offset
+            newbright = min([255, max([0, newbright])])
+            hls = (hls[0], newbright, hls[2])
+
+            # Re-convert to rgb and hex
+            newrgb = colorsys.hls_to_rgb(hls[0], hls[1], hls[2])
+
+            def _validate(value):
+                value = int(value)
+                if value > 255:
+                    return 255
+                elif value < 0:
+                    return 0
+                return value
+
+            newrgb = [_validate(newrgb[0]), _validate(newrgb[1]), _validate(newrgb[2])]
+            newhex = '#%02x%02x%02x' % (newrgb[0], newrgb[1], newrgb[2])
+            return newhex
+
+        bg_color = _get_color(style_context, "theme_base_color_breeze", "theme_base_color")
+        text_color = _get_color(style_context, "theme_fg_color_breeze", "theme_fg_color")
+        selected_bg_color = _get_color(style_context, "theme_selected_bg_color_breeze", "theme_selected_bg_color")
+        selected_text_color = _get_color(style_context, "theme_selected_fg_color_breeze", "theme_selected_fg_color")
+        button_bg_color = _get_color(style_context, "theme_button_background_normal_breeze", "theme_bg_color")
+
+        css = []
+        css.append("--bg: " + bg_color)
+        css.append("--text: " + text_color)
+        css.append("--selected_bg: " + selected_bg_color)
+        css.append("--selected_text: " + selected_text_color)
+        css.append("--button_bg: linear-gradient(to bottom, {0}, {1})".format(
+                                          _get_hex_variant(button_bg_color, 8),
+                                          _get_hex_variant(button_bg_color, -8)))
+
+        app.update_page("body", "append", "<style>:root {" + ";".join(css) + "}</style>")
+
+        # For High Contrast theme
+        if bg_color in ["#000", "#000000"]:
+            app.update_page("body", "addClass", "bg-is-black")
 
     def _back_action(self, data):
         self.go_back()
@@ -199,7 +274,7 @@ class AppView(WebKit2.WebView):
     def _goto_packageview(self, packagename):
         #file = os.path.abspath(os.path.join(translations.get_pages_path(), "packagepage.html"))
         file = os.path.abspath("/usr/share/feren-store-new/packagepage.html")
-        uri = 'file://' + urllib.request.pathname2url(file+"?package="+packagename)
+        uri = 'file://' + urllib.request.pathname2url(file)
         self.load_uri(uri)
 
     def _push_config(self):
@@ -208,7 +283,7 @@ class AppView(WebKit2.WebView):
         # respond accordingly, for now we just use jQuery to manually toggle
         current_page = app.current_page
         
-        if current_page == "index.html":
+        if current_page == "home.html":
             self.back_btn.set_sensitive(False)
         else:
             self.back_btn.set_sensitive(True)
@@ -236,7 +311,7 @@ class AppView(WebKit2.WebView):
         self.gowebsites_btn.handler_unblock(self.gowebsites_handle_id)
 
         ### Index Page ###
-        if current_page == 'index.html' or current_page.startswith('recommendations.html'):
+        if current_page == 'home.html' or current_page.startswith('recommendations.html'):
             self.gohome_btn.handler_block(self.gohome_handle_id)
             self.gohome_btn.set_active(True)
             self.gohome_btn.handler_unblock(self.gohome_handle_id)
@@ -328,12 +403,13 @@ class AppView(WebKit2.WebView):
             app.update_page('#image2', 'src', app_image2)
             app.update_page('#image3', 'src', app_image3)
 
-        #if current_page == 'index':
+        #if current_page == 'home':
             #systemstate.first_run = False
             
         self.back_signal_handler = self.back_btn.connect("clicked", self._back_action)
 
     def _load_changed_cb(self, view, frame):
+        self.refresh_gtk_colors()
         uri = str(self.get_uri())
         app.current_page = uri.rsplit('/', 1)[1]
         self._push_config()
@@ -523,11 +599,10 @@ class WelcomeApp(object):
 
         #self.json_path = self._data_path + "/config/packages.json"
 
-        self._start_page = 'index.html'
+        self._start_page = 'home.html'
         #TODO: Add redirect to package page if jump_to_package is True
 
         self._build_app()
-
 
     def _build_app(self):
         # build window
@@ -765,7 +840,7 @@ class WelcomeApp(object):
         Gtk.main()
 
     def _gohome_pressed(self, gtk_widget):
-        self.webkit._goto_page("index")
+        self.webkit._goto_page("home")
 
     def _goapps_pressed(self, gtk_widget):
         self.webkit._goto_page("applicationspage")

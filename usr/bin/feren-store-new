@@ -177,7 +177,8 @@ class AppView(WebKit2.WebView):
         WebKit2.WebView.__init__(self)
         
         # Set WebKit background to the same as GTK
-        self.set_background_color(Gdk.RGBA(0, 0, 0, 0))
+        #Update: Nevermind it goes black
+        #self.set_background_color(Gdk.RGBA(0, 0, 0, 0))
 
         self.connect('load-changed', self._load_changed_cb)
         self.connect('context-menu', self._context_menu_cb)
@@ -274,8 +275,27 @@ class AppView(WebKit2.WebView):
     def _goto_packageview(self, packagename):
         #file = os.path.abspath(os.path.join(translations.get_pages_path(), "packagepage.html"))
         file = os.path.abspath("/usr/share/feren-store-new/packagepage.html")
-        uri = 'file://' + urllib.request.pathname2url(file)
+        uri = 'file://' + urllib.request.pathname2url(file+"?package="+packagename)
         self.load_uri(uri)
+        
+    def _package_header_icon(self, appicon, appiconstack, app_iconurl, packagetoview, roading):
+        allocation = appicon.get_allocation()
+        desired_width = 48
+        desired_height = 48
+        templocation = GlobalVariables().storagetemplocation
+        if not app_iconurl.startswith("file://"):
+            #Download the application icon
+            if not os.path.isfile(templocation+"/"+packagetoview+"-icon"):
+                urllib.request.urlretrieve(app_iconurl, templocation+"/"+packagetoview+"-icon")
+            #Set it as the icon in the Store
+            icon_pixbuf = GdkPixbuf.Pixbuf.new_from_file(templocation+"/"+packagetoview+"-icon")
+        else:
+            #Set it as the icon in the Store
+            icon_pixbuf = GdkPixbuf.Pixbuf.new_from_file(app_iconurl.split('file://')[1])
+        icon_pixbuf = icon_pixbuf.scale_simple(desired_width, desired_height, GdkPixbuf.InterpType.BILINEAR)
+        appicon.set_from_pixbuf(icon_pixbuf)
+        appiconstack.set_visible_child(appicon)
+        roading.stop()
 
     def _push_config(self):
         # TODO: push notification should be connected to angularjs and use a
@@ -362,27 +382,19 @@ class AppView(WebKit2.WebView):
             
             jsonutility = JSONReader()
             
-            if packagetoview != self.current_package:                
+            if packagetoview != self.current_package:
+                self.app_iconimg_loading_spinner.start()
+                self.app_iconimg_stack.set_visible_child(self.app_iconimg_loading)
                 app_title, app_desc, app_iconurl = jsonutility.getPackageInfo(packagetoview)
                 self.app_title.set_label(app_title)
                 self.app_desc.set_label(app_desc)
                 
                 templocation=GlobalVariables().storagetemplocation
                 
-                allocation = self.app_iconimg.get_allocation()
-                desired_width = allocation.width
-                desired_height = allocation.height
-                if not app_iconurl.startswith("file://"):
-                    #Download the application icon
-                    if not os.path.isfile(templocation+"/"+packagetoview+"-icon"):
-                        urllib.request.urlretrieve(app_iconurl, templocation+"/"+packagetoview+"-icon")
-                    #Set it as the icon in the Store
-                    icon_pixbuf = GdkPixbuf.Pixbuf.new_from_file(templocation+"/"+packagetoview+"-icon")
-                else:
-                    #Set it as the icon in the Store
-                    icon_pixbuf = GdkPixbuf.Pixbuf.new_from_file(app_iconurl.split('file://')[1])
-                icon_pixbuf = icon_pixbuf.scale_simple(desired_width, desired_height, GdkPixbuf.InterpType.BILINEAR)
-                self.app_iconimg.set_from_pixbuf(icon_pixbuf)
+                
+                appiconthread = Thread(target=self._package_header_icon,
+                                  args=(self.app_iconimg, self.app_iconimg_stack, app_iconurl, packagetoview, self.app_iconimg_loading_spinner))
+                appiconthread.start()
                 
                 #Update the sources combobox
                 app_sourceslist, app_sourcesorder = jsonutility.getSources(packagetoview)
@@ -719,8 +731,18 @@ class WelcomeApp(object):
         box_application_header = Gtk.Box()
         box_application_header.get_style_context().add_class("only-toolbar")
         box_application_namedesc = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        
+        #Application Icon
         app_iconimg = Gtk.Image()
-        app_iconimg.set_from_icon_name("google-chrome", Gtk.IconSize.DIALOG);
+        app_iconimg_loading = Gtk.Spinner()
+        app_iconimg_stack = Gtk.Stack()
+        app_iconimg_loading_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        app_iconimg_loading_box.set_center_widget(app_iconimg_loading)
+        app_iconimg_stack.add_named(app_iconimg_loading_box, "Loading")
+        app_iconimg_stack.add_named(app_iconimg, "AppIcon")
+        app_iconimg_stack.set_visible_child(app_iconimg)
+        
+        
         app_title = Gtk.Label(label=("APPLICATIONNAME"))
         app_title.get_style_context().add_class("14scale")
         app_desc = Gtk.Label(label=("APPLICATIONDESC"))
@@ -763,7 +785,7 @@ class WelcomeApp(object):
         box_application_namedesc.pack_start(app_title_box, False, False, 0)
         box_application_namedesc.pack_end(app_desc_box, False, False, 0)
         
-        box_application_header.pack_start(app_iconimg, False, False, 8)
+        box_application_header.pack_start(app_iconimg_stack, False, False, 8)
         box_application_header.pack_start(centering_titledesc_box, False, True, 4)
         box_application_header.pack_end(centering_btnactions_box, False, True, 4)
         
@@ -783,7 +805,10 @@ class WelcomeApp(object):
 
         # build webkit container
         mv = AppView()
+        mv.get_style_context().add_class(Gtk.STYLE_CLASS_VIEW)
         mv.set_zoom_level(1.0)
+        
+        mv._package_header_icon(app_iconimg, app_iconimg_stack, "file:///usr/share/feren-os/logos/blank.png", "blank", app_iconimg_loading)
 
         mv.status_btn = status_btn
         mv.back_btn = back_btn
@@ -791,6 +816,10 @@ class WelcomeApp(object):
         mv.goapps_btn = self.goapps_btn
         mv.gothemes_btn = self.gothemes_btn
         mv.gowebsites_btn = self.gowebsites_btn
+        mv.app_iconimg_loading = app_iconimg_loading_box
+        mv.app_iconimg_loading_spinner = app_iconimg_loading
+        mv.app_iconimg_stack = app_iconimg_stack
+        mv.app_iconimg = app_iconimg
         
         mv.box_application_header = box_application_header
         #handle_id is needed to block events as otherwise the button active state changes cause button press events to occur (for whatever stupid reason) which ultimately leads to a Stack Overflow as the event code retriggers the event by triggering the button press yet again looping the cycle indefinitely

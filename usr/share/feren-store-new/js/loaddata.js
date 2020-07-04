@@ -21,3 +21,9 @@
 //     xmlhttp.open("GET", "https://feren-os.github.io/store-data/curated/apt/"+packagename+".json", true);
 //     xmlhttp.send();
 // }
+
+
+//TEMPORARY
+function gotopackage() {
+    window.location.href = ("packagepage.html?package="+document.getElementById("gototextbox").value);
+}

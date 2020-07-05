@@ -296,6 +296,9 @@ class AppView(WebKit2.WebView):
                 
                 self.current_package = packagetoview
                 
+                #TODO: Replace this with code that detects source type and cts accordingly, instead of just APT
+                self.box_application_header.btns_get_package_status("apt", packagetoview)
+                
             #Update in-page items
             app_description, app_author, app_bugreporturl, app_website, app_tos, app_category, app_image1, app_image2, app_image3 = jsonutility.getPackageSiteInfo(packagetoview)
             app.update_page('#description', 'html', app_description)

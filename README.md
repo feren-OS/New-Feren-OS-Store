@@ -22,7 +22,7 @@ Ideas I want to implement into this application:
 - [ ] Add custom messages to command-not-found
 - [ ] Add FYI dialog when opening DEBs for packages already in the Store
 - [ ] Support for KDE Store
-- [ ] Separate Games and Themes sections
+- [x] Separate Games and Themes sections
 - [ ] Pre-defined application lists on the Home page for different topics
 - [ ] Settings: Allow toggling of automatic updates
 - [ ] Settings: Allow toggling and management of application sources

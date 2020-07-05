@@ -27,3 +27,16 @@
 function gotopackage() {
     window.location.href = ("packagepage.html?package="+document.getElementById("gototextbox").value);
 }
+
+function mkbutton(packagename) {
+    //TODO: Stop this from running multiple times at once
+    var newbutton = document.createElement("input");
+    newbutton.type = "button";
+    newbutton.value = packagename;
+
+    newbutton.addEventListener ("click", function() {
+        window.location.href = ("packagepage.html?package="+packagename);
+    });
+
+    document.body.appendChild(newbutton);
+}

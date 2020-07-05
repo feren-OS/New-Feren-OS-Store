@@ -9,4 +9,5 @@ Exec=/usr/bin/feren-store-new
 Icon=softwarecenter
 Comment=Get applications for Feren OS
 Encoding=UTF-8
+Keywords=store;package;synaptic;themes;get;new;hot;stuff;cool;application;more;discover;muon
 Categories=PackageManager;GTK;System;Settings;

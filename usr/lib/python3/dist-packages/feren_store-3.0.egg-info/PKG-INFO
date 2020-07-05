@@ -1,0 +1,18 @@
+Metadata-Version: 1.1
+Name: feren-store
+Version: 1.0
+Summary: The Feren OS Store
+Home-page: https://ferenos.weebly.com
+Author: Feren OS Team
+Author-email: ferenos@outlook.com
+License: GPL-3.0
+Description: Get applications for Feren OS
+Keywords: store,package,synaptic,themes,get,new,hot,stuff,cool,application,more,discover,muon
+Platform: any
+Classifier: Programming Language :: Python
+Classifier: Environment :: X11 Applications :: GTK
+Classifier: Development Status :: 5 - Production/Stable
+Classifier: Intended Audience :: End Users/Desktop
+Classifier: License :: OSI Approved :: GNU General Public License v3 (GPLv3)
+Classifier: Operating System :: POSIX :: Linux
+Classifier: Topic :: Desktop Environment

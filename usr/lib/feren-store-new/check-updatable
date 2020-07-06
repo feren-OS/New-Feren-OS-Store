@@ -1,0 +1,32 @@
+#!/usr/bin/python3
+# This file is part of the Feren Store program.
+#
+# Copyright 2020 Feren OS Team
+#
+# This program is free software; you can redistribute it and/or modify it
+# under the terms and conditions of the GNU General Public License,
+# version 3, as published by the Free Software Foundation.
+#
+# This program is distributed in the hope it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+# details.
+
+import apt
+import sys
+
+#Return codes:
+#1 - Installed
+#2 - Not installed
+#3 - Updatable
+package = sys.argv[1]
+apt_cache = apt.Cache()
+pkginfo = apt_cache[package]
+apt_cache.upgrade(True) # dist-upgrade
+
+if (apt_cache[pkginfo.name].is_installed and apt_cache[pkginfo.name].marked_upgrade and apt_cache[pkginfo.name].candidate.version != apt_cache[pkginfo.name].installed.version):
+    print("3")
+elif apt_cache[pkginfo.name].is_installed:
+    print("1")
+else:
+    print("2")

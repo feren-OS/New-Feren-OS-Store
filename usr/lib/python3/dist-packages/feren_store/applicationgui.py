@@ -22,6 +22,7 @@ gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk, GdkPixbuf, GLib, GObject
 
 from feren_store import storeutils, aptmgmt
+from .aptmgmt import APTChecks
 
 #if os.path.isfile("/usr/bin/snapd"):
 #    from feren_store import snapmgmt
@@ -77,9 +78,13 @@ class PackageHeader(Gtk.Box):
         self.app_mgmt_installunavailbtn.get_style_context().add_class(Gtk.STYLE_CLASS_SUGGESTED_ACTION)
         self.app_mgmt_updatebtn.get_style_context().add_class(Gtk.STYLE_CLASS_SUGGESTED_ACTION)
         self.app_mgmt_removebtn.get_style_context().add_class(Gtk.STYLE_CLASS_DESTRUCTIVE_ACTION)
+        self.app_mgmt_preparingbtns = Gtk.Spinner()
+        self.app_mgmt_button.add_named(self.app_mgmt_preparingbtns, "Preparing")
         self.app_mgmt_button.add_named(self.app_mgmt_installbtn, "Standard")
         self.app_mgmt_button.add_named(self.app_mgmt_installunavailbtn, "InstallRepo")
         self.app_mgmt_button.add_named(self.app_mgmt_removebtn, "Remove")
+        self.app_mgmt_button.set_visible_child(self.app_mgmt_preparingbtns)
+        self.app_mgmt_preparingbtns.start()
         
         #Application Source Combobox
         self.app_source_dropdown = Gtk.ComboBox()
@@ -205,7 +210,7 @@ class PackageHeader(Gtk.Box):
         else:
             self.app_source_dropdown.set_visible(True)
     
-    def change_button_state(self, newstate):
+    def change_button_state(self, newstate, disableremove):
         #Change button state between 4 states:
         #uninstalled: Install is visible
         #sourcemissing: Install... is visible
@@ -217,34 +222,49 @@ class PackageHeader(Gtk.Box):
         self.app_mgmt_removebtn.set_sensitive(False)
         self.app_mgmt_updatebtn.set_sensitive(False)
         
-        if newstate == "uninstalled":
+        if newstate == "loading":
+            self.app_mgmt_preparingbtns.start()
+            self.app_mgmt_updatebtn.set_visible(False)
+            self.app_mgmt_button.set_visible_child(self.app_mgmt_preparingbtns)
+        elif newstate == "uninstalled":
             self.app_mgmt_installbtn.set_sensitive(True)
             self.app_mgmt_updatebtn.set_visible(False)
             self.app_mgmt_button.set_visible_child(self.app_mgmt_installbtn)
+            self.app_mgmt_preparingbtns.stop()
         elif newstate == "sourcemissing":
             self.app_mgmt_installunavailbtn.set_sensitive(True)
             self.app_mgmt_updatebtn.set_visible(False)
             self.app_mgmt_button.set_visible_child(self.app_mgmt_installunavailbtn)
+            self.app_mgmt_preparingbtns.stop()
         elif newstate == "installed":
-            self.app_mgmt_removebtn.set_sensitive(True)
+            if disableremove == False:
+                self.app_mgmt_removebtn.set_sensitive(True)
             self.app_mgmt_updatebtn.set_visible(False)
             self.app_mgmt_button.set_visible_child(self.app_mgmt_removebtn)
+            self.app_mgmt_preparingbtns.stop()
         elif newstate == "updatable":
-            self.app_mgmt_installbtn.set_sensitive(True)
+            if disableremove == False:
+                self.app_mgmt_removebtn.set_sensitive(True)
             self.app_mgmt_updatebtn.set_sensitive(True)
             self.app_mgmt_updatebtn.set_visible(True)
             self.app_mgmt_button.set_visible_child(self.app_mgmt_removebtn)
+            self.app_mgmt_preparingbtns.stop()
     
     def btns_get_package_status(self, packagetype, package):
         #Get the state of the package for changing the buttons presented to the user accordingly - is it installed? does it need an update?
         #packagetype is whether it's native, snap, ice or flatpak
+        self.change_button_state("loading", False)
         if packagetype == "apt":
             #TODO: Add support for checking for updates
-            if aptmgmt.APTChecks().checkinstalled(package):
-                self.change_button_state("installed")
+            #LAG HERE
+            ifinstalled = APTChecks.checkinstalled(package)
+            if ifinstalled.startswith("1"):
+                self.change_button_state("installed", package == "feren-store")
+            elif ifinstalled.startswith("3"):
+                self.change_button_state("updatable", package == "feren-store")
             else:
                 #TODO: Check for package source if necessary
-                self.change_button_state("uninstalled")
+                self.change_button_state("uninstalled", False)
     
     def install_with_source_pressed(self, button):
         #When you press 'Install...'

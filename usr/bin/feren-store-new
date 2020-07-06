@@ -86,6 +86,7 @@ class AppView(WebKit2.WebView):
 
         self.connect('load-changed', self._load_changed_cb)
         self.connect('context-menu', self._context_menu_cb)
+        self.connect('notify::status', self.on_load_status_change)
 
         self.l_uri = None
         self.status_btn = None
@@ -97,6 +98,11 @@ class AppView(WebKit2.WebView):
         self.current_package = ""
         
         self.add_buttons = True
+        
+    def on_load_status_change(download, status):
+        print(download, status)
+        
+        #self._push_config()
         
     def refresh_gtk_colors(self):
         """
@@ -190,6 +196,40 @@ class AppView(WebKit2.WebView):
         #TODO: Make it category-specific
         for package in jsonreader.aptdata:
             app.run_javascript('mkbutton("'+package+'")')
+            
+    def packagepagestuff(self):
+        packagetoview = app.current_page.split('packagepage.html?package=')[1]
+        if packagetoview != self.current_package:
+            app_title, app_desc, app_iconurl = jsonreader.getPackageInfo(packagetoview)
+            self.box_application_header.set_app_details(app_title, app_desc)
+            
+            templocation=globalvars.storagetemplocation
+            
+            appiconthread = Thread(target=self.box_application_header.set_icon,
+                                args=(app_iconurl, packagetoview))
+            appiconthread.start()
+            
+            #Update the sources combobox
+            self.box_application_header.get_sources(jsonreader.availablesources, packagetoview)
+            
+            self.current_package = packagetoview
+            
+        #TODO: Replace this with code that detects source type and cts accordingly, instead of just APT
+        btnsthread = Thread(target=self.box_application_header.btns_get_package_status,
+                            args=("apt", packagetoview))
+        btnsthread.start()
+            
+        #Update in-page items
+        app_description, app_author, app_bugreporturl, app_website, app_tos, app_category, app_image1, app_image2, app_image3 = jsonreader.getPackageSiteInfo(packagetoview)
+        app.update_page('#description', 'html', app_description)
+        app.update_page('#author', 'html', app_author)
+        app.update_page('#bugreporturl', 'html', app_bugreporturl)
+        app.update_page('#website', 'html', app_website)
+        app.update_page('#tos', 'html', app_tos)
+        app.update_page('#category', 'html', app_category)
+        app.update_page('#image1', 'src', app_image1)
+        app.update_page('#image2', 'src', app_image2)
+        app.update_page('#image3', 'src', app_image3)
 
     def _push_config(self):
         # TODO: push notification should be connected to angularjs and use a
@@ -277,39 +317,9 @@ class AppView(WebKit2.WebView):
             self.gowebsites_btn.set_visible(False)
             self.box_application_header.set_visible(True)
             
-            packagetoview = current_page.split('packagepage.html?package=')[1]
-            
-            jsonutility = jsonreader
-            
-            if packagetoview != self.current_package:
-                app_title, app_desc, app_iconurl = jsonutility.getPackageInfo(packagetoview)
-                self.box_application_header.set_app_details(app_title, app_desc)
-                
-                templocation=globalvars.storagetemplocation
-                
-                appiconthread = Thread(target=self.box_application_header.set_icon,
-                                  args=(app_iconurl, packagetoview))
-                appiconthread.start()
-                
-                #Update the sources combobox
-                self.box_application_header.get_sources(jsonreader.availablesources, packagetoview)
-                
-                self.current_package = packagetoview
-                
-                #TODO: Replace this with code that detects source type and cts accordingly, instead of just APT
-                self.box_application_header.btns_get_package_status("apt", packagetoview)
-                
-            #Update in-page items
-            app_description, app_author, app_bugreporturl, app_website, app_tos, app_category, app_image1, app_image2, app_image3 = jsonutility.getPackageSiteInfo(packagetoview)
-            app.update_page('#description', 'html', app_description)
-            app.update_page('#author', 'html', app_author)
-            app.update_page('#bugreporturl', 'html', app_bugreporturl)
-            app.update_page('#website', 'html', app_website)
-            app.update_page('#tos', 'html', app_tos)
-            app.update_page('#category', 'html', app_category)
-            app.update_page('#image1', 'src', app_image1)
-            app.update_page('#image2', 'src', app_image2)
-            app.update_page('#image3', 'src', app_image3)
+            remainingstuffthread = Thread(target=self.packagepagestuff,
+                                args=())
+            remainingstuffthread.start()
 
         #if current_page == 'home':
             #systemstate.first_run = False
@@ -320,7 +330,9 @@ class AppView(WebKit2.WebView):
         self.refresh_gtk_colors()
         uri = str(self.get_uri())
         app.current_page = uri.rsplit('/', 1)[1]
-        self._push_config()
+        #By making this only run on a fully loaded page we prevent this thing running multiple times in one page load
+        if self.get_estimated_load_progress() == 1.0:
+            self._push_config()
 
     def _context_menu_cb(self, webview, menu, event, htr, user_data=None):
         # Disable context menu.

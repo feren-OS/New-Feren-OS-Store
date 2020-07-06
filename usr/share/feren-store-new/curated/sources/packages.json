@@ -3958,5 +3958,11 @@
     "flatpak": "",
     "snap": "",
     "order-of-importance": ["apt"]
+  },
+  "feren-store": {
+    "apt": "standard",
+    "flatpak": "",
+    "snap": "",
+    "order-of-importance": ["apt"]
   }
 }

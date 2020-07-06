@@ -17,6 +17,7 @@ import aptdaemon.client
 from aptdaemon.gtk3widgets import AptErrorDialog, AptProgressDialog
 import aptdaemon.errors
 import gettext
+import subprocess
 
 #if os.path.isfile("/usr/bin/snapd"):
 #    from feren_store import snapmgmt
@@ -29,16 +30,7 @@ _ = t.gettext
 #TODO: Put Snap permissions management in the Store settings
 
 class APTChecks():
-    def checkinstalled(self, package):
-        #Return codes:
-        #True - Installed
-        #False - Not installed
-        apt_cache = apt.Cache()
-        pkginfo = apt_cache[package]
-        try:
-            if apt_cache[pkginfo.name].installed != None:
-                return True
-            else:
-                return False
-        except:
-            return False
+    def checkinstalled(package):
+        output = subprocess.run(["/usr/lib/feren-store-new/check-updatable", package],
+                            stdout=subprocess.PIPE).stdout.decode("utf-8")
+        return output

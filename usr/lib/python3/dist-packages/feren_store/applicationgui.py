@@ -22,7 +22,7 @@ gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk, GdkPixbuf, GLib, GObject
 
 from feren_store import storeutils, aptmgmt
-from .aptmgmt import APTChecks
+from .aptmgmt import APTChecks, APTMgmt
 
 #if os.path.isfile("/usr/bin/snapd"):
 #    from feren_store import snapmgmt
@@ -93,6 +93,11 @@ class PackageHeader(Gtk.Box):
         self.app_source_dropdown.pack_start(cell, True)
         self.app_source_dropdown.add_attribute(cell, "text", 0)
         
+        #Progress Bar
+        self.app_mgmt_progress = Gtk.ProgressBar()
+        self.app_mgmt_progress_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        self.app_mgmt_progress_box.set_center_widget(self.app_mgmt_progress)
+        
         #Make sure application name and short descriptions are left-aligned in there
         app_title_box = Gtk.Box()
         app_desc_box = Gtk.Box()
@@ -110,6 +115,7 @@ class PackageHeader(Gtk.Box):
         
         inside_btnactions_box = Gtk.Box()
         inside_btnactions_box.pack_start(self.app_source_dropdown, False, False, 4)
+        inside_btnactions_box.pack_start(self.app_mgmt_progress_box, False, False, 4)
         inside_btnactions_box.pack_start(self.app_mgmt_updatebtn, False, False, 4)
         inside_btnactions_box.pack_start(self.app_mgmt_button, False, False, 4)
         
@@ -131,6 +137,19 @@ class PackageHeader(Gtk.Box):
         icon_pixbuf = icon_pixbuf.scale_simple(desired_width, desired_height, GdkPixbuf.InterpType.BILINEAR)
         self.app_iconimg.set_from_pixbuf(icon_pixbuf)
         
+        #Button Assignment
+        self.app_mgmt_installbtn.connect('clicked', self.install_pressed)
+        self.app_mgmt_installunavailbtn.connect('clicked', self.install_with_source_pressed)
+        self.app_mgmt_updatebtn.connect('clicked', self.update_pressed)
+        self.app_mgmt_removebtn.connect('clicked', self.remove_pressed)
+        
+        #Variables
+        self.current_package = ""
+        self.APTMgmt = APTMgmt(self)
+        self.sources_visible = True
+        
+    def set_current_package(self, packagename):
+        self.current_package = packagename
 
     def show(self):
         self.set_visible(True)
@@ -207,8 +226,10 @@ class PackageHeader(Gtk.Box):
         self.app_source_dropdown.set_active(0)
         if amount_of_sources <= 1:
             self.app_source_dropdown.set_visible(False)
+            self.sources_visible = False
         else:
             self.app_source_dropdown.set_visible(True)
+            self.sources_visible = True
     
     def change_button_state(self, newstate, disableremove):
         #Change button state between 4 states:
@@ -221,28 +242,45 @@ class PackageHeader(Gtk.Box):
         self.app_mgmt_installunavailbtn.set_sensitive(False)
         self.app_mgmt_removebtn.set_sensitive(False)
         self.app_mgmt_updatebtn.set_sensitive(False)
+        if self.sources_visible:
+            self.app_source_dropdown.set_visible(True)
         
         if newstate == "loading":
+            self.app_mgmt_progress_box.set_visible(False)
+            self.app_mgmt_button.set_visible(True)
             self.app_mgmt_preparingbtns.start()
             self.app_mgmt_updatebtn.set_visible(False)
             self.app_mgmt_button.set_visible_child(self.app_mgmt_preparingbtns)
+        elif newstate == "busy":
+            #TODO: Add cancel button for non-running tasks once the tasks system is implemented
+            self.app_source_dropdown.set_visible(False)
+            self.app_mgmt_progress_box.set_visible(True)
+            self.app_mgmt_button.set_visible(False)
         elif newstate == "uninstalled":
+            self.app_mgmt_progress_box.set_visible(False)
+            self.app_mgmt_button.set_visible(True)
             self.app_mgmt_installbtn.set_sensitive(True)
             self.app_mgmt_updatebtn.set_visible(False)
             self.app_mgmt_button.set_visible_child(self.app_mgmt_installbtn)
             self.app_mgmt_preparingbtns.stop()
         elif newstate == "sourcemissing":
+            self.app_mgmt_progress_box.set_visible(False)
+            self.app_mgmt_button.set_visible(True)
             self.app_mgmt_installunavailbtn.set_sensitive(True)
             self.app_mgmt_updatebtn.set_visible(False)
             self.app_mgmt_button.set_visible_child(self.app_mgmt_installunavailbtn)
             self.app_mgmt_preparingbtns.stop()
         elif newstate == "installed":
+            self.app_mgmt_progress_box.set_visible(False)
+            self.app_mgmt_button.set_visible(True)
             if disableremove == False:
                 self.app_mgmt_removebtn.set_sensitive(True)
             self.app_mgmt_updatebtn.set_visible(False)
             self.app_mgmt_button.set_visible_child(self.app_mgmt_removebtn)
             self.app_mgmt_preparingbtns.stop()
         elif newstate == "updatable":
+            self.app_mgmt_progress_box.set_visible(False)
+            self.app_mgmt_button.set_visible(True)
             if disableremove == False:
                 self.app_mgmt_removebtn.set_sensitive(True)
             self.app_mgmt_updatebtn.set_sensitive(True)
@@ -256,15 +294,22 @@ class PackageHeader(Gtk.Box):
         self.change_button_state("loading", False)
         if packagetype == "apt":
             #TODO: Add support for checking for updates
+            #TODO: Add support here for checking the application is in the Tasks area as being currently managed
             #LAG HERE
-            ifinstalled = APTChecks.checkinstalled(package)
-            if ifinstalled.startswith("1"):
+            ifinstalled = APTChecks.checkinstalled(package)[0]
+            if ifinstalled == "1":
                 self.change_button_state("installed", package == "feren-store")
-            elif ifinstalled.startswith("3"):
+            elif ifinstalled == "3":
                 self.change_button_state("updatable", package == "feren-store")
             else:
                 #TODO: Check for package source if necessary
                 self.change_button_state("uninstalled", False)
+    
+    def on_installer_finished(self, package):
+        if self.current_package == package:
+            #TODO: Make this work depending on the package type
+            self.btns_get_package_status("apt", package)
+            self.app_mgmt_progress.set_fraction(0.0)
     
     def install_with_source_pressed(self, button):
         #When you press 'Install...'
@@ -272,7 +317,8 @@ class PackageHeader(Gtk.Box):
     
     def install_pressed(self, button):
         #When you press 'Install'
-        pass
+        self.change_button_state("busy", False)
+        self.APTMgmt.install_package(self.current_package)
     
     def update_pressed(self, button):
         #When you press 'Update'
@@ -280,4 +326,5 @@ class PackageHeader(Gtk.Box):
     
     def remove_pressed(self, button):
         #When you press 'Remove'
-        pass
+        self.change_button_state("busy", False)
+        self.APTMgmt.remove_package(self.current_package)

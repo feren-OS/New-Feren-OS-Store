@@ -199,6 +199,7 @@ class AppView(WebKit2.WebView):
             
     def packagepagestuff(self):
         packagetoview = app.current_page.split('packagepage.html?package=')[1]
+        
         if packagetoview != self.current_package:
             app_title, app_desc, app_iconurl = jsonreader.getPackageInfo(packagetoview)
             self.box_application_header.set_app_details(app_title, app_desc)
@@ -213,6 +214,7 @@ class AppView(WebKit2.WebView):
             self.box_application_header.get_sources(jsonreader.availablesources, packagetoview)
             
             self.current_package = packagetoview
+            self.box_application_header.set_current_package(packagetoview)
             
         #TODO: Replace this with code that detects source type and cts accordingly, instead of just APT
         btnsthread = Thread(target=self.box_application_header.btns_get_package_status,

@@ -23,6 +23,7 @@ import gi
 from gi.repository import Gtk, Gdk, GdkPixbuf, GObject, GLib
 from threading import Thread
 import urllib
+import time
 
 from feren_store.storeutils import JSONReader, GlobalVariables
 
@@ -47,6 +48,45 @@ class ChangesConfirmDialog():
         self.storeheader = storeheader
         self.packagename = packagename
         self.aptmgmt = aptmgmt
+        self.jsonutil = JSONReader()
+        
+        packagesdisplayedinst = []
+        packagesdisplayedupgr = []
+        packagesdisplayedrm = []
+        for packagenm in packagesinstalled:
+            if not packagenm == packagename:
+                try:
+                    test = self.jsonutil.availablesources[packagenm]["apt"]
+                    packagesdisplayedinst.append(packagenm)
+                except:
+                    pass
+        for packagenm in packagesupgraded:
+            if not packagenm == packagename:
+                try:
+                    test = self.jsonutil.availablesources[packagenm]["apt"]
+                    packagesdisplayedupgr.append(packagenm)
+                except:
+                    pass
+        for packagenm in packagesremoved:
+            if not packagenm == packagename:
+                try:
+                    test = self.jsonutil.availablesources[packagenm]["apt"]
+                    packagesdisplayedrm.append(packagenm)
+                except:
+                    pass
+                
+        if not packagesdisplayedinst and not packagesdisplayedupgr and not packagesdisplayedrm:
+            if optype == "install":
+                Thread(target=self.confirm_install,
+                                args=()).start()
+            elif optype == "upgrade":
+                Thread(target=self.confirm_upgrade,
+                                args=()).start()
+            elif optype == "remove":
+                Thread(target=self.confirm_remove,
+                                args=()).start()
+            return
+        
         self.w = Gtk.Window()
         self.w.set_type_hint(Gdk.WindowTypeHint.DIALOG)
         self.w.set_position(Gtk.WindowPosition.CENTER)
@@ -98,231 +138,15 @@ class ChangesConfirmDialog():
         b = Gtk.Box(homogeneous=False, spacing=4)
         b.pack_start(sw, expand=True, fill=True, padding=0)
         
-        changes_list_box = Gtk.VBox()
-        changes_list_box.set_spacing(4)
-        sw.add(changes_list_box)
-        
+        self.changes_list_box = Gtk.VBox()
+        self.changes_list_box.set_spacing(4)
+        sw.add(self.changes_list_box)
         
         self.tempdir = GlobalVariables().storagetemplocation
-        jsonutil = JSONReader()
         
-        desired_width = 48
-        desired_height = 48
-        self.icon_pixbuf = GdkPixbuf.Pixbuf.new_from_file("/usr/share/feren-os/logos/blank.png")
-        self.icon_pixbuf = self.icon_pixbuf.scale_simple(desired_width, desired_height, GdkPixbuf.InterpType.BILINEAR)
-        
-        packagesdisplayedinst = []
-        packagesdisplayedinstbox = Gtk.VBox()
-        for packagenm in packagesinstalled:
-            if not packagenm == packagename:
-                try:
-                    test = jsonutil.availablesources[packagenm]["apt"]
-                    box_application_icontext = Gtk.Box()
-                    box_application_namedesc = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-                    #Application Icon
-                    app_iconimg = Gtk.Image()
-                    app_iconimg_loading = Gtk.Spinner()
-                    app_iconimg_stack = Gtk.Stack()
-                    app_iconimg_loading_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-                    app_iconimg_loading_box.set_center_widget(app_iconimg_loading)
-                    app_iconimg_stack.add_named(app_iconimg_loading_box, "Loading")
-                    app_iconimg_stack.add_named(app_iconimg, "AppIcon")
-                    app_iconimg_stack.set_visible_child(app_iconimg)
-                    #Application Title
-                    app_title = Gtk.Label()
-                    app_title.get_style_context().add_class("12scale")
-                    #Application Description
-                    app_desc = Gtk.Label()
-                    
-                    app_title.set_label(jsonutil.aptdata[packagenm]["realname"])
-                    app_desc.set_label(jsonutil.aptdata[packagenm]["shortdescription"])
-                    
-                    #Make sure application name and short descriptions are left-aligned in there
-                    app_title_box = Gtk.Box()
-                    app_desc_box = Gtk.Box()
-                    app_title_box.pack_start(app_title, False, False, 0)
-                    app_desc_box.pack_start(app_desc, False, False, 0)
-                    
-                    #Make the column for application name and short description
-                    box_application_namedesc.pack_start(app_title_box, False, False, 0)
-                    box_application_namedesc.pack_end(app_desc_box, False, False, 0)
-                    
-                    #Stuff for centering items vertically
-                    centering_titledesc_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-                    centering_titledesc_box.set_center_widget(box_application_namedesc)
-                    
-                    #Structure building
-                    box_application_icontext.pack_start(app_iconimg_stack, False, False, 0)
-                    box_application_icontext.pack_start(centering_titledesc_box, False, True, 8)
-                    
-                    #Margins
-                    app_iconimg.set_margin_top(8)
-                    app_iconimg.set_margin_bottom(8)
-                    
-                    app_iconimg.set_from_pixbuf(self.icon_pixbuf)
-                    
-                    packagesdisplayedinstbox.pack_start(box_application_icontext, False, True, 0)
-                    
-                    packagesdisplayedinst.append(packagenm)
-                    
-                    Thread(target=self.get_img,
-                                args=(jsonutil.aptdata[packagenm]["iconurl"], app_iconimg, app_iconimg_loading, app_iconimg_loading_box, app_iconimg_stack, packagenm)).start()
-                except:
-                    pass
-                    
-        if packagesdisplayedinst:
-            installedlabel = Gtk.Label(label="The following items will also be installed:")
-            installedlabel.get_style_context().add_class("12scale")
-            installedlabelbox = Gtk.Box()
-            installedlabelbox.pack_start(installedlabel, False, False, 0)
-            changes_list_box.pack_start(installedlabelbox, False, False, 4)
-            changes_list_box.pack_start(packagesdisplayedinstbox, False, True, 0)
-        
-        packagesdisplayedupgr = []
-        packagesdisplayedupgrbox = Gtk.VBox()
-        for packagenm in packagesupgraded:
-            if not packagenm == packagename:
-                try:
-                    test = jsonutil.availablesources[packagenm]["apt"]
-                    box_application_icontext = Gtk.Box()
-                    box_application_namedesc = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-                    #Application Icon
-                    app_iconimg = Gtk.Image()
-                    app_iconimg_loading = Gtk.Spinner()
-                    app_iconimg_stack = Gtk.Stack()
-                    app_iconimg_loading_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-                    app_iconimg_loading_box.set_center_widget(app_iconimg_loading)
-                    app_iconimg_stack.add_named(app_iconimg_loading_box, "Loading")
-                    app_iconimg_stack.add_named(app_iconimg, "AppIcon")
-                    app_iconimg_stack.set_visible_child(app_iconimg)
-                    #Application Title
-                    app_title = Gtk.Label()
-                    app_title.get_style_context().add_class("12scale")
-                    #Application Description
-                    app_desc = Gtk.Label()
-                    
-                    app_title.set_label(jsonutil.aptdata[packagenm]["realname"])
-                    app_desc.set_label(jsonutil.aptdata[packagenm]["shortdescription"])
-                    
-                    #Make sure application name and short descriptions are left-aligned in there
-                    app_title_box = Gtk.Box()
-                    app_desc_box = Gtk.Box()
-                    app_title_box.pack_start(app_title, False, False, 0)
-                    app_desc_box.pack_start(app_desc, False, False, 0)
-                    
-                    #Make the column for application name and short description
-                    box_application_namedesc.pack_start(app_title_box, False, False, 0)
-                    box_application_namedesc.pack_end(app_desc_box, False, False, 0)
-                    
-                    #Stuff for centering items vertically
-                    centering_titledesc_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-                    centering_titledesc_box.set_center_widget(box_application_namedesc)
-                    
-                    #Structure building
-                    box_application_icontext.pack_start(app_iconimg_stack, False, False, 0)
-                    box_application_icontext.pack_start(centering_titledesc_box, False, True, 8)
-                    
-                    #Margins
-                    app_iconimg.set_margin_top(8)
-                    app_iconimg.set_margin_bottom(8)
-                    
-                    app_iconimg.set_from_pixbuf(self.icon_pixbuf)
-                    
-                    packagesdisplayedupgrbox.pack_start(box_application_icontext, False, True, 0)
-                    
-                    packagesdisplayedupgr.append(packagenm)
-                    
-                    Thread(target=self.get_img,
-                                args=(jsonutil.aptdata[packagenm]["iconurl"], app_iconimg, app_iconimg_loading, app_iconimg_loading_box, app_iconimg_stack, packagenm)).start()
-                except:
-                    pass
-                    
-        if packagesdisplayedupgr:
-            upgradelabel = Gtk.Label(label="The following items will be updated:")
-            upgradelabel.get_style_context().add_class("12scale")
-            upgradelabelbox = Gtk.Box()
-            upgradelabelbox.pack_start(upgradelabel, False, False, 0)
-            changes_list_box.pack_start(upgradelabelbox, False, False, 4)
-            changes_list_box.pack_start(packagesdisplayedupgrbox, False, True, 0)
-        
-        packagesdisplayedrm = []
-        packagesdisplayedrmbox = Gtk.VBox()
-        for packagenm in packagesremoved:
-            if not packagenm == packagename:
-                try:
-                    test = jsonutil.availablesources[packagenm]["apt"]
-                    box_application_icontext = Gtk.Box()
-                    box_application_namedesc = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-                    #Application Icon
-                    app_iconimg = Gtk.Image()
-                    app_iconimg_loading = Gtk.Spinner()
-                    app_iconimg_stack = Gtk.Stack()
-                    app_iconimg_loading_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-                    app_iconimg_loading_box.set_center_widget(app_iconimg_loading)
-                    app_iconimg_stack.add_named(app_iconimg_loading_box, "Loading")
-                    app_iconimg_stack.add_named(app_iconimg, "AppIcon")
-                    app_iconimg_stack.set_visible_child(app_iconimg)
-                    #Application Title
-                    app_title = Gtk.Label()
-                    app_title.get_style_context().add_class("12scale")
-                    #Application Description
-                    app_desc = Gtk.Label()
-                    
-                    app_title.set_label(jsonutil.aptdata[packagenm]["realname"])
-                    app_desc.set_label(jsonutil.aptdata[packagenm]["shortdescription"])
-                    
-                    #Make sure application name and short descriptions are left-aligned in there
-                    app_title_box = Gtk.Box()
-                    app_desc_box = Gtk.Box()
-                    app_title_box.pack_start(app_title, False, False, 0)
-                    app_desc_box.pack_start(app_desc, False, False, 0)
-                    
-                    #Make the column for application name and short description
-                    box_application_namedesc.pack_start(app_title_box, False, False, 0)
-                    box_application_namedesc.pack_end(app_desc_box, False, False, 0)
-                    
-                    #Stuff for centering items vertically
-                    centering_titledesc_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-                    centering_titledesc_box.set_center_widget(box_application_namedesc)
-                    
-                    #Structure building
-                    box_application_icontext.pack_start(app_iconimg_stack, False, False, 0)
-                    box_application_icontext.pack_start(centering_titledesc_box, False, True, 8)
-                    
-                    #Margins
-                    app_iconimg.set_margin_top(8)
-                    app_iconimg.set_margin_bottom(8)
-                    
-                    app_iconimg.set_from_pixbuf(self.icon_pixbuf)
-                    
-                    packagesdisplayedrmbox.pack_start(box_application_icontext, False, True, 0)
-                    
-                    packagesdisplayedrm.append(packagenm)
-                    
-                    Thread(target=self.get_img,
-                                args=(jsonutil.aptdata[packagenm]["iconurl"], app_iconimg, app_iconimg_loading, app_iconimg_loading_box, app_iconimg_stack, packagenm)).start()
-                except:
-                    pass
-                    
-        if packagesdisplayedrm:
-            removelabel = Gtk.Label(label="The following items will be removed:")
-            removelabel.get_style_context().add_class("12scale")
-            removelabelbox = Gtk.Box()
-            removelabelbox.pack_start(removelabel, False, False, 0)
-            changes_list_box.pack_start(removelabelbox, False, False, 4)
-            changes_list_box.pack_start(packagesdisplayedrmbox, False, True, 0)
-        
-        if not packagesdisplayedinst and not packagesdisplayedupgr and not packagesdisplayedrm:
-            if optype == "install":
-                Thread(target=self.confirm_install,
-                                args=()).start()
-            elif optype == "upgrade":
-                Thread(target=self.confirm_upgrade,
-                                args=()).start()
-            elif optype == "remove":
-                Thread(target=self.confirm_remove,
-                                args=()).start()
-            return
+        thread = Thread(target=self.confirm_window_populate,
+                        args=(packagesdisplayedinst, packagesdisplayedupgr, packagesdisplayedrm, packagename))
+        thread.start()
         
         yesbtn = Gtk.Button(stock=Gtk.STOCK_YES)
         nobtn = Gtk.Button(stock=Gtk.STOCK_NO)
@@ -344,8 +168,6 @@ class ChangesConfirmDialog():
         mainwindow.pack_end(b, True, True, 0)
         
         self.w.show_all()
-        
-        
         
     def get_img(self, iconuri, imageobj, loadingobj, loadingboxobj, imagestackobj, packagetoview):
         loadingobj.start()
@@ -369,8 +191,214 @@ class ChangesConfirmDialog():
             icon_pixbuf = GdkPixbuf.Pixbuf.new_from_file("/usr/share/icons/Inspire/256/apps/feren-store.png")
         icon_pixbuf = icon_pixbuf.scale_simple(desired_width, desired_height, GdkPixbuf.InterpType.BILINEAR)
         imageobj.set_from_pixbuf(icon_pixbuf)
+        #The stacks randomly don't switch from loading to the icon object without this delay in place
+        time.sleep(0.2)
         imagestackobj.set_visible_child(imageobj)
         loadingobj.stop()
+        
+    def confirm_window_populate(self, packagesdisplayedinst, packagesdisplayedupgr, packagesdisplayedrm, packagename):
+        GLib.idle_add(self._confirm_window_populate, packagesdisplayedinst, packagesdisplayedupgr, packagesdisplayedrm, packagename)
+        
+    def _confirm_window_populate(self, packagesdisplayedinst, packagesdisplayedupgr, packagesdisplayedrm, packagename):
+        desired_width = 48
+        desired_height = 48
+        self.icon_pixbuf = GdkPixbuf.Pixbuf.new_from_file("/usr/share/feren-os/logos/blank.png")
+        self.icon_pixbuf = self.icon_pixbuf.scale_simple(desired_width, desired_height, GdkPixbuf.InterpType.BILINEAR)
+        
+        packagesdisplayedinstbox = Gtk.VBox()
+        if packagesdisplayedinst:
+            for packagenm in packagesdisplayedinst:
+                try:
+                    box_application_icontext = Gtk.Box()
+                    box_application_namedesc = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+                    #Application Icon
+                    app_iconimg = Gtk.Image()
+                    
+                    app_iconimg.set_from_pixbuf(self.icon_pixbuf)
+                    
+                    app_iconimg_loading = Gtk.Spinner()
+                    app_iconimg_stack = Gtk.Stack()
+                    app_iconimg_loading_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+                    app_iconimg_loading_box.set_center_widget(app_iconimg_loading)
+                    app_iconimg_stack.add_named(app_iconimg_loading_box, "Loading")
+                    app_iconimg_stack.add_named(app_iconimg, "AppIcon")
+                    app_iconimg_stack.set_visible_child(app_iconimg)
+                    #Application Title
+                    app_title = Gtk.Label()
+                    app_title.get_style_context().add_class("12scale")
+                    #Application Description
+                    app_desc = Gtk.Label()
+                    
+                    app_title.set_label(self.jsonutil.aptdata[packagenm]["realname"])
+                    app_desc.set_label(self.jsonutil.aptdata[packagenm]["shortdescription"])
+                    
+                    #Make sure application name and short descriptions are left-aligned in there
+                    app_title_box = Gtk.Box()
+                    app_desc_box = Gtk.Box()
+                    app_title_box.pack_start(app_title, False, False, 0)
+                    app_desc_box.pack_start(app_desc, False, False, 0)
+                    
+                    #Make the column for application name and short description
+                    box_application_namedesc.pack_start(app_title_box, False, False, 0)
+                    box_application_namedesc.pack_end(app_desc_box, False, False, 0)
+                    
+                    #Stuff for centering items vertically
+                    centering_titledesc_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+                    centering_titledesc_box.set_center_widget(box_application_namedesc)
+                    
+                    #Structure building
+                    box_application_icontext.pack_start(app_iconimg_stack, False, False, 0)
+                    box_application_icontext.pack_start(centering_titledesc_box, False, True, 8)
+                    
+                    #Margins
+                    app_iconimg.set_margin_top(8)
+                    app_iconimg.set_margin_bottom(8)
+                    
+                    packagesdisplayedinstbox.pack_start(box_application_icontext, False, True, 0)
+                    
+                    Thread(target=self.get_img,
+                                args=(self.jsonutil.aptdata[packagenm]["iconurl"], app_iconimg, app_iconimg_loading, app_iconimg_loading_box, app_iconimg_stack, packagenm)).start()
+                except:
+                    pass
+                    
+            installedlabel = Gtk.Label(label="The following items will also be installed:")
+            installedlabel.get_style_context().add_class("12scale")
+            installedlabelbox = Gtk.Box()
+            installedlabelbox.pack_start(installedlabel, False, False, 0)
+            self.changes_list_box.pack_start(installedlabelbox, False, False, 4)
+            self.changes_list_box.pack_start(packagesdisplayedinstbox, False, True, 0)
+        
+        packagesdisplayedupgrbox = Gtk.VBox()
+        if packagesdisplayedupgr:
+            for packagenm in packagesupgraded:
+                try:
+                    box_application_icontext = Gtk.Box()
+                    box_application_namedesc = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+                    #Application Icon
+                    app_iconimg = Gtk.Image()
+                    
+                    app_iconimg.set_from_pixbuf(self.icon_pixbuf)
+                    
+                    app_iconimg_loading = Gtk.Spinner()
+                    app_iconimg_stack = Gtk.Stack()
+                    app_iconimg_loading_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+                    app_iconimg_loading_box.set_center_widget(app_iconimg_loading)
+                    app_iconimg_stack.add_named(app_iconimg_loading_box, "Loading")
+                    app_iconimg_stack.add_named(app_iconimg, "AppIcon")
+                    app_iconimg_stack.set_visible_child(app_iconimg)
+                    #Application Title
+                    app_title = Gtk.Label()
+                    app_title.get_style_context().add_class("12scale")
+                    #Application Description
+                    app_desc = Gtk.Label()
+                    
+                    app_title.set_label(self.jsonutil.aptdata[packagenm]["realname"])
+                    app_desc.set_label(self.jsonutil.aptdata[packagenm]["shortdescription"])
+                    
+                    #Make sure application name and short descriptions are left-aligned in there
+                    app_title_box = Gtk.Box()
+                    app_desc_box = Gtk.Box()
+                    app_title_box.pack_start(app_title, False, False, 0)
+                    app_desc_box.pack_start(app_desc, False, False, 0)
+                    
+                    #Make the column for application name and short description
+                    box_application_namedesc.pack_start(app_title_box, False, False, 0)
+                    box_application_namedesc.pack_end(app_desc_box, False, False, 0)
+                    
+                    #Stuff for centering items vertically
+                    centering_titledesc_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+                    centering_titledesc_box.set_center_widget(box_application_namedesc)
+                    
+                    #Structure building
+                    box_application_icontext.pack_start(app_iconimg_stack, False, False, 0)
+                    box_application_icontext.pack_start(centering_titledesc_box, False, True, 8)
+                    
+                    #Margins
+                    app_iconimg.set_margin_top(8)
+                    app_iconimg.set_margin_bottom(8)
+                    
+                    packagesdisplayedupgrbox.pack_start(box_application_icontext, False, True, 0)
+                    
+                    packagesdisplayedupgr.append(packagenm)
+                    
+                    Thread(target=self.get_img,
+                                args=(self.jsonutil.aptdata[packagenm]["iconurl"], app_iconimg, app_iconimg_loading, app_iconimg_loading_box, app_iconimg_stack, packagenm)).start()
+                except:
+                    pass
+                    
+            upgradelabel = Gtk.Label(label="The following items will be updated:")
+            upgradelabel.get_style_context().add_class("12scale")
+            upgradelabelbox = Gtk.Box()
+            upgradelabelbox.pack_start(upgradelabel, False, False, 0)
+            self.changes_list_box.pack_start(upgradelabelbox, False, False, 4)
+            self.changes_list_box.pack_start(packagesdisplayedupgrbox, False, True, 0)
+        
+        packagesdisplayedrmbox = Gtk.VBox()
+        if packagesdisplayedrm:
+            for packagenm in packagesremoved:
+                try:
+                    box_application_icontext = Gtk.Box()
+                    box_application_namedesc = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+                    #Application Icon
+                    app_iconimg = Gtk.Image()
+                    
+                    app_iconimg.set_from_pixbuf(self.icon_pixbuf)
+                    
+                    app_iconimg_loading = Gtk.Spinner()
+                    app_iconimg_stack = Gtk.Stack()
+                    app_iconimg_loading_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+                    app_iconimg_loading_box.set_center_widget(app_iconimg_loading)
+                    app_iconimg_stack.add_named(app_iconimg_loading_box, "Loading")
+                    app_iconimg_stack.add_named(app_iconimg, "AppIcon")
+                    app_iconimg_stack.set_visible_child(app_iconimg)
+                    #Application Title
+                    app_title = Gtk.Label()
+                    app_title.get_style_context().add_class("12scale")
+                    #Application Description
+                    app_desc = Gtk.Label()
+                    
+                    app_title.set_label(self.jsonutil.aptdata[packagenm]["realname"])
+                    app_desc.set_label(self.jsonutil.aptdata[packagenm]["shortdescription"])
+                    
+                    #Make sure application name and short descriptions are left-aligned in there
+                    app_title_box = Gtk.Box()
+                    app_desc_box = Gtk.Box()
+                    app_title_box.pack_start(app_title, False, False, 0)
+                    app_desc_box.pack_start(app_desc, False, False, 0)
+                    
+                    #Make the column for application name and short description
+                    box_application_namedesc.pack_start(app_title_box, False, False, 0)
+                    box_application_namedesc.pack_end(app_desc_box, False, False, 0)
+                    
+                    #Stuff for centering items vertically
+                    centering_titledesc_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+                    centering_titledesc_box.set_center_widget(box_application_namedesc)
+                    
+                    #Structure building
+                    box_application_icontext.pack_start(app_iconimg_stack, False, False, 0)
+                    box_application_icontext.pack_start(centering_titledesc_box, False, True, 8)
+                    
+                    #Margins
+                    app_iconimg.set_margin_top(8)
+                    app_iconimg.set_margin_bottom(8)
+                    
+                    packagesdisplayedrmbox.pack_start(box_application_icontext, False, True, 0)
+                    
+                    packagesdisplayedrm.append(packagenm)
+                    
+                    Thread(target=self.get_img,
+                                args=(self.jsonutil.aptdata[packagenm]["iconurl"], app_iconimg, app_iconimg_loading, app_iconimg_loading_box, app_iconimg_stack, packagenm)).start()
+                except:
+                    pass
+                    
+            removelabel = Gtk.Label(label="The following items will be removed:")
+            removelabel.get_style_context().add_class("12scale")
+            removelabelbox = Gtk.Box()
+            removelabelbox.pack_start(removelabel, False, False, 0)
+            self.changes_list_box.pack_start(removelabelbox, False, False, 4)
+            self.changes_list_box.pack_start(packagesdisplayedrmbox, False, True, 0)
+            
+        self.changes_list_box.show_all()
     
     def confirm(self, btn, optype):
         if optype == "install":

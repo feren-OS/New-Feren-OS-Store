@@ -290,7 +290,7 @@ class AppView(WebKit2.WebView):
             
             if self.add_buttons == True:
                 applistthread = Thread(target=self._generate_apps_list,
-                                    args=("e"))
+                                    args=("e",))
                 applistthread.start()
         elif current_page == 'themespage.html':
             self.gothemes_btn.handler_block(self.gothemes_handle_id)
@@ -331,9 +331,9 @@ class AppView(WebKit2.WebView):
     def _load_changed_cb(self, view, frame):
         self.refresh_gtk_colors()
         uri = str(self.get_uri())
-        app.current_page = uri.rsplit('/', 1)[1]
         #By making this only run on a fully loaded page we prevent this thing running multiple times in one page load
         if self.get_estimated_load_progress() == 1.0:
+            app.current_page = uri.rsplit('/', 1)[1]
             self._push_config()
 
     def _context_menu_cb(self, webview, menu, event, htr, user_data=None):
@@ -682,7 +682,7 @@ class WelcomeApp(object):
         b = Gtk.Box(homogeneous=False, spacing=0)
         b.pack_start(sw, expand=True, fill=True, padding=0)
         
-        box_application_header = applicationgui.PackageHeader()
+        box_application_header = applicationgui.PackageHeader(w)
         mv.box_application_header = box_application_header
 
         # add the box to the parent window and show
@@ -698,6 +698,7 @@ class WelcomeApp(object):
         self.webkit = mv
         
         box_application_header.set_visible(False)
+        box_application_header.parent_window = w
 
     def run(self):
         signal.signal(signal.SIGINT, signal.SIG_DFL)

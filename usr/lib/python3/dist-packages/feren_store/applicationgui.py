@@ -17,9 +17,10 @@ import os
 import urllib.request
 import urllib.error
 import time
+from threading import Thread
 
 gi.require_version('Gtk', '3.0')
-from gi.repository import Gtk, GdkPixbuf, GLib, GObject
+from gi.repository import Gtk, GdkPixbuf, GLib, GObject, GLib
 
 from feren_store import storeutils, aptmgmt
 from .aptmgmt import APTChecks, APTMgmt
@@ -37,7 +38,7 @@ _ = t.gettext
 
 class PackageHeader(Gtk.Box):
 
-    def __init__(self):
+    def __init__(self, mainwind):
         global globalvars
         global jsonreader
         globalvars = storeutils.GlobalVariables()
@@ -145,8 +146,10 @@ class PackageHeader(Gtk.Box):
         
         #Variables
         self.current_package = ""
-        self.APTMgmt = APTMgmt(self)
+        self.APTMgmt = APTMgmt(self, mainwind)
         self.sources_visible = True
+        
+        GObject.threads_init()
         
     def set_current_package(self, packagename):
         self.current_package = packagename
@@ -230,8 +233,17 @@ class PackageHeader(Gtk.Box):
         else:
             self.app_source_dropdown.set_visible(True)
             self.sources_visible = True
-    
+            
     def change_button_state(self, newstate, disableremove):
+        thread = Thread(target=self._change_button_state,
+                        args=(newstate, disableremove))
+        thread.daemon = True
+        thread.start()
+        
+    def _change_button_state(self, newstate, disableremove):
+        GLib.idle_add(self.__change_button_state, newstate, disableremove)
+    
+    def __change_button_state(self, newstate, disableremove):
         #Change button state between 4 states:
         #uninstalled: Install is visible
         #sourcemissing: Install... is visible
@@ -304,12 +316,22 @@ class PackageHeader(Gtk.Box):
             else:
                 #TODO: Check for package source if necessary
                 self.change_button_state("uninstalled", False)
-    
+                
     def on_installer_finished(self, package):
         if self.current_package == package:
-            #TODO: Make this work depending on the package type
-            self.btns_get_package_status("apt", package)
-            self.app_mgmt_progress.set_fraction(0.0)
+            thread = Thread(target=self._on_installer_finished,
+                            args=(package,))
+            thread.daemon = True
+            thread.start()
+    
+    def _on_installer_finished(self, package):
+            #Tried threads - just crashes
+            GLib.idle_add(self.__on_installer_finished, package)
+            
+    def __on_installer_finished(self, package):
+        #TODO: Make this work depending on the package type
+        self.btns_get_package_status("apt", package)
+        self.app_mgmt_progress.set_fraction(0.0)
     
     def install_with_source_pressed(self, button):
         #When you press 'Install...'
@@ -322,7 +344,8 @@ class PackageHeader(Gtk.Box):
     
     def update_pressed(self, button):
         #When you press 'Update'
-        pass
+        self.change_button_state("busy", False)
+        self.APTMgmt.upgrade_package(self.current_package)
     
     def remove_pressed(self, button):
         #When you press 'Remove'

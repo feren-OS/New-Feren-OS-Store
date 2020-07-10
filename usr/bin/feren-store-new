@@ -185,12 +185,15 @@ class AppView(WebKit2.WebView):
         uri = 'file://' + urllib.request.pathname2url(file)
         self.add_buttons = True
         self.load_uri(uri)
-
+        
     def _goto_packageview(self, packagename):
         #file = os.path.abspath(os.path.join(translations.get_pages_path(), "packagepage.html"))
         file = os.path.abspath("/usr/share/feren-store-new/packagepage.html")
         uri = 'file://' + urllib.request.pathname2url(file+"?package="+packagename)
         self.load_uri(uri)
+
+    def _btn_goto_packageview(self, btn, packagename):
+        self._goto_packageview(packagename)
 
     def _generate_apps_list(self, category):
         #TODO: Make it category-specific
@@ -256,17 +259,38 @@ class AppView(WebKit2.WebView):
         self.goapps_btn.handler_block(self.goapps_handle_id)
         self.gothemes_btn.handler_block(self.gothemes_handle_id)
         self.gowebsites_btn.handler_block(self.gowebsites_handle_id)
+        self.status_btn.handler_block(self.status_handle_id)
         #Do their toggles and then unblock
         self.gohome_btn.set_active(False)
         self.goapps_btn.set_active(False)
         self.gothemes_btn.set_active(False)
         self.gowebsites_btn.set_active(False)
+        self.status_btn.set_active(False)
         self.gohome_btn.handler_unblock(self.gohome_handle_id)
         self.goapps_btn.handler_unblock(self.goapps_handle_id)
         self.gothemes_btn.handler_unblock(self.gothemes_handle_id)
         self.gowebsites_btn.handler_unblock(self.gowebsites_handle_id)
+        self.status_btn.handler_unblock(self.status_handle_id)
 
         ### Index Page ###
+        if current_page == 'statuspage.html':
+            self.status_btn.handler_block(self.status_handle_id)
+            self.status_btn.set_active(True)
+            self.status_btn.handler_unblock(self.status_handle_id)
+            
+            self.gohome_btn.set_visible(True)
+            self.goapps_btn.set_visible(True)
+            self.gothemes_btn.set_visible(True)
+            self.gowebsites_btn.set_visible(True)
+            self.box_application_header.set_visible(False)
+            
+            taskslistthread = Thread(target=self.box_application_header.APTMgmt.tasksmgmttool.gui_refresh_tasks,
+                                args=())
+            taskslistthread.start()
+            
+            self.pages.set_visible_child(self.sw2)
+        else:
+            self.pages.set_visible_child(app.webkit)
         if current_page == 'home.html' or current_page.startswith('recommendations.html'):
             self.gohome_btn.handler_block(self.gohome_handle_id)
             self.gohome_btn.set_active(True)
@@ -546,9 +570,10 @@ class WelcomeApp(object):
         
         status_img = Gtk.Image()
         status_img.set_from_icon_name("get-hot-new-stuff", Gtk.IconSize.BUTTON);
-        status_btn = Gtk.ToggleButton(image=status_img)
-        status_btn.set_name("status-btn")
-        status_btn.hide()
+        self.status_btn = Gtk.ToggleButton(image=status_img)
+        self.status_btn.set_name("status-btn")
+        self.status_btn.set_always_show_image(True)
+        self.status_handle_id = self.status_btn.connect("clicked", self._status_pressed)
         
         search_img = Gtk.Image()
         search_img.set_from_icon_name("edit-find-symbolic", Gtk.IconSize.BUTTON);
@@ -630,7 +655,7 @@ class WelcomeApp(object):
         buttoncenteringbtns.pack_start(self.goapps_btn, False, True, 0)
         buttoncenteringbtns.pack_start(self.gothemes_btn, False, True, 0)
         buttoncenteringbtns.pack_start(self.gowebsites_btn, False, True, 0)
-        buttoncenteringbtns.pack_start(status_btn, False, True, 0)
+        buttoncenteringbtns.pack_start(self.status_btn, False, True, 0)
         buttoncenteringbtns.pack_start(search_btn, False, True, 0)
         buttoncenteringbtns.pack_start(menu_btn, False, True, 0)
         
@@ -646,13 +671,45 @@ class WelcomeApp(object):
         style_context.add_provider_for_screen(screen, css_provider,
                                           Gtk.STYLE_PROVIDER_PRIORITY_USER)
         
-
+        # build tasks page
+        taskspage = Gtk.VBox(spacing=8)
+        
+        taskslabel_box = Gtk.Box()
+        taskslabel = Gtk.Label(label="Currently working on these tasks:")
+        taskslabel.get_style_context().add_class("14scale")
+        taskslabel_box.pack_start(taskslabel, False, False, 0)
+        
+        tasksitems = Gtk.VBox(spacing=4)
+        
+        updateslabel_box = Gtk.Box()
+        updateslabel = Gtk.Label(label="Updates are available for:")
+        updateslabel.get_style_context().add_class("14scale")
+        updateslabel_box.pack_start(updateslabel, False, False, 0)
+        
+        updatesitems = Gtk.VBox(spacing=4)
+        
+        installedlabel_box = Gtk.Box()
+        installedlabel = Gtk.Label(label="Currently installed:")
+        installedlabel.get_style_context().add_class("14scale")
+        installedlabel_box.pack_start(installedlabel, False, False, 0)
+        
+        installeditems = Gtk.VBox(spacing=4)
+        
+                
+        taskspage.pack_start(taskslabel_box, False, True, 0)
+        taskspage.pack_start(tasksitems, False, True, 0)
+        taskspage.pack_start(updateslabel_box, False, True, 0)
+        taskspage.pack_start(updatesitems, False, True, 0)
+        taskspage.pack_start(installedlabel_box, False, True, 0)
+        taskspage.pack_start(installeditems, False, True, 0)
+        
+        
         # build webkit container
         mv = AppView()
         mv.get_style_context().add_class(Gtk.STYLE_CLASS_VIEW)
         mv.set_zoom_level(1.0)
 
-        mv.status_btn = status_btn
+        mv.status_btn = self.status_btn
         mv.back_btn = back_btn
         mv.gohome_btn = self.gohome_btn
         mv.goapps_btn = self.goapps_btn
@@ -660,12 +717,13 @@ class WelcomeApp(object):
         mv.gowebsites_btn = self.gowebsites_btn
         
         #handle_id is needed to block events as otherwise the button active state changes cause button press events to occur (for whatever stupid reason) which ultimately leads to a Stack Overflow as the event code retriggers the event by triggering the button press yet again looping the cycle indefinitely
+        mv.status_handle_id = self.status_handle_id
         mv.gohome_handle_id = self.gohome_handle_id
         mv.goapps_handle_id = self.goapps_handle_id
         mv.gothemes_handle_id = self.gothemes_handle_id
         mv.gowebsites_handle_id = self.gowebsites_handle_id
         
-        #status_btn.connect("clicked", self._show_status)
+        #self.status_btn.connect("clicked", self._show_status)
 
         # load our index file
         #file = os.path.abspath(os.path.join(translations.get_pages_path(), self._start_page))
@@ -673,17 +731,34 @@ class WelcomeApp(object):
         uri = 'file://' + urllib.request.pathname2url(file)
         mv.load_uri(uri)
 
-        # build scrolled window widget and add our appview container
+        # build scrolled window widget and add our appview stack
         sw = Gtk.ScrolledWindow()
         sw.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
-        sw.add(mv)
+        
+        # build another scrolled window widget and add our tasks view
+        sw2 = Gtk.ScrolledWindow()
+        sw2.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        sw2.get_style_context().add_class(Gtk.STYLE_CLASS_VIEW)
+        
+        pages = Gtk.Stack()
+        pages.add_named(mv, "webkit")
+        pages.add_named(sw2, "tasks")
+        taskspage.set_margin_bottom(8)
+        taskspage.set_margin_top(8)
+        taskspage.set_margin_left(10)
+        taskspage.set_margin_right(10)
+        
+        sw.add(pages)
+        sw2.add(taskspage)
 
         # build a an autoexpanding box and add our scrolled window
         b = Gtk.Box(homogeneous=False, spacing=0)
         b.pack_start(sw, expand=True, fill=True, padding=0)
         
-        box_application_header = applicationgui.PackageHeader(w)
-        mv.box_application_header = box_application_header
+        box_application_header = applicationgui.PackageHeader(w, self.status_btn)
+        box_application_header.tvtasksitems = tasksitems
+        box_application_header.tvupdatesitems = updatesitems
+        box_application_header.tvinstalleditems = installeditems
 
         # add the box to the parent window and show
         mainwindow.pack_start(maintoolbar, False, True, 0)
@@ -696,6 +771,13 @@ class WelcomeApp(object):
 
         self._window = w
         self.webkit = mv
+        
+        #Add more variables to mv
+        mv.box_application_header = box_application_header
+        mv.sw2 = sw2
+        mv.pages = pages
+        
+        box_application_header.webkit = mv
         
         box_application_header.set_visible(False)
         box_application_header.parent_window = w
@@ -715,6 +797,9 @@ class WelcomeApp(object):
 
     def _gowebsites_pressed(self, gtk_widget):
         self.webkit._goto_page("websitespage")
+
+    def _status_pressed(self, gtk_widget):
+        self.webkit._goto_page("statuspage")
 
     def close(self, p1 = None, p2 = None):
         Gtk.main_quit(p1, p2)

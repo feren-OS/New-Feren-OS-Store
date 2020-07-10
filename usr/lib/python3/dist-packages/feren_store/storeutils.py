@@ -14,6 +14,9 @@
 import json
 import os
 import getpass
+import gi
+from gi.repository import GObject, GLib, Gtk
+from threading import Thread
 
 class GlobalVariables(object):
     def __init__(self):
@@ -73,3 +76,130 @@ class JSONReader(object):
             return self.aptdata[packagename]["description"], self.aptdata[packagename]["author"], self.aptdata[packagename]["bugreporturl"], self.aptdata[packagename]["website"], self.aptdata[packagename]["tos"], self.aptdata[packagename]["category"], self.aptdata[packagename]["image1"], self.aptdata[packagename]["image2"], self.aptdata[packagename]["image3"]
         except KeyError:
             return None, None, None
+
+class TasksMgmt(object):
+    
+    def __init__(self, storeheader):
+        self.currenttasks = []
+        #currenttaskseditable needs to exist, unless better code can be made, as directly modifying a list used in a loop, no matter the method, WILL cause ListChanged exceptions
+        self.currenttask = ""
+        self.dontcontinue = False
+        self.inaction = False
+        self.storeheader = storeheader
+        self.existingwidgets = []
+        
+        GObject.threads_init()
+        
+    def add_task(self, newtask):
+        if not newtask in self.currenttasks:
+            self.currenttasks.append(newtask)
+            self.gui_refresh_tasks()
+        
+    def start_now(self):
+        #Code for initiating the installation process if it isn't already initialised
+        if self.inaction == False:
+            self.do_tasks()
+        else:
+            return
+        
+    def gui_refresh_tasks(self):
+        thread = Thread(target=self._gui_refresh_tasks,
+                        args=())
+        thread.daemon = True
+        thread.start()
+    
+    def _gui_refresh_tasks(self):
+        #Tried threads - just crashes
+        GLib.idle_add(self.__gui_refresh_tasks)
+    
+    def __gui_refresh_tasks(self):
+        if len(self.currenttasks) >= 1:
+            self.storeheader.status_btn.set_label(str(len(self.currenttasks)))
+        else:
+            self.storeheader.status_btn.set_label("")
+        
+        #Destoy the existing widgets
+        for widget in self.existingwidgets:
+            widget.destroy()
+        
+        self.existingwidgets = []
+        
+        for task in self.currenttasks:
+            if task.startswith('apt:inst:'):
+                packagenm = task.split('apt:inst:')[1]
+            elif task.startswith('apt:upgr:'):
+                packagenm = task.split('apt:upgr:')[1]
+            elif task.startswith('apt:rm:'):
+                packagenm = task.split('apt:rm:')[1]
+            taskbutton = Gtk.Button(label=packagenm)
+            taskbutton.connect('clicked', self.storeheader.webkit._btn_goto_packageview, packagenm)
+            self.storeheader.tvtasksitems.pack_start(taskbutton, False, True, 0)
+            self.existingwidgets.append(taskbutton)
+            
+        self.storeheader.tvtasksitems.show_all()
+        self.storeheader.tvupdatesitems.show_all()
+        self.storeheader.tvinstalleditems.show_all()
+        
+    def do_task(self, task):
+        #Code for doing the task
+        if task.startswith("apt:inst:"):
+            self.storeheader.APTMgmt.apt_client.install_packages([task.split('apt:inst:')[1]],
+                                        reply_handler=self.storeheader.APTMgmt.confirm_changes,
+                                        error_handler=self.storeheader.APTMgmt.on_error) # dbus.DBusException
+            #Since the do_task thing doesn't hold up code while it's doing it...
+            while self.storeheader.APTMgmt.changesinaction == False:
+                pass
+            while self.storeheader.APTMgmt.changesinaction == True:
+                pass
+        elif task.startswith("apt:upgr:"):
+            self.storeheader.APTMgmt.apt_client.upgrade_packages([task.split('apt:upgr:')[1]],
+                                        reply_handler=self.storeheader.APTMgmt.confirm_changes,
+                                        error_handler=self.storeheader.APTMgmt.on_error) # dbus.DBusException#Since the do_task thing doesn't hold up code while it's doing it...
+            while self.storeheader.APTMgmt.changesinaction == False:
+                pass
+            while self.storeheader.APTMgmt.changesinaction == True:
+                pass
+        elif task.startswith("apt:rm:"):
+            self.storeheader.APTMgmt.apt_client.remove_packages([task.split('apt:rm:')[1]],
+                                        reply_handler=self.storeheader.APTMgmt.confirm_changes,
+                                        error_handler=self.storeheader.APTMgmt.on_error) # dbus.DBusException#Since the do_task thing doesn't hold up code while it's doing it...
+            while self.storeheader.APTMgmt.changesinaction == False:
+                pass
+            while self.storeheader.APTMgmt.changesinaction == True:
+                pass
+        elif task.startswith("flatpak:inst:"):
+            pass
+        elif task.startswith("flatpak:upgr:"):
+            pass
+        elif task.startswith("flatpak:rm:"):
+            pass
+        elif task.startswith("snap:inst:"):
+            pass
+        elif task.startswith("snap:upgr:"):
+            pass
+        elif task.startswith("snap:rm:"):
+            pass
+        elif task.startswith("ice:inst:"):
+            pass
+        elif task.startswith("ice:rm:"):
+            pass
+        elif task.startswith("apt:aptsource:"):
+            pass
+        self.currenttasks.remove(task)
+        
+    def do_tasks(self):
+        self.inaction = True
+        while self.currenttasks != []:
+            self.do_task(self.currenttasks[0])
+            self.gui_refresh_tasks()
+            
+        self.inaction = False
+        
+    def closing_check(self):
+        if self.currenttasks != []:
+            #Prevent closing and stop the tasks after the existing task is done, followed by closing Store
+            pass
+            
+            
+            
+            

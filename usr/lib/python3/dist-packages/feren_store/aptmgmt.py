@@ -17,10 +17,10 @@ import apt
 import aptdaemon.client
 from aptdaemon.gtk3widgets import AptErrorDialog, AptProgressDialog, AptConfirmDialog
 import aptdaemon.errors
+import aptdaemon.enums
 import gettext
-import subprocess
 import gi
-from gi.repository import Gtk, Gdk, GdkPixbuf, GObject, GLib
+from gi.repository import Gtk, Gdk, GdkPixbuf, GObject, GLib, Gio
 from threading import Thread
 import urllib
 import time
@@ -36,6 +36,85 @@ t = gettext.translation('feren-store', '/usr/share/locale', fallback=True)
 _ = t.gettext
 
 #TODO: Put Snap permissions management in the Store settings
+
+class APTErrorDialog():
+
+    """Dialog to confirm the changes that would be required by a
+    transaction.
+    """
+
+    def __init__(self, error):
+        text = aptdaemon.enums.get_error_string_from_enum(error.code)
+        desc = aptdaemon.enums.get_error_description_from_enum(error.code)
+        
+        self.w = Gtk.Window()
+        self.w.set_type_hint(Gdk.WindowTypeHint.DIALOG)
+        self.w.set_position(Gtk.WindowPosition.CENTER)
+        self.w.set_title("Oops")
+        self.w.set_default_size(500, 340)
+        self.w.set_destroy_with_parent(True)
+        self.w.set_resizable(False)
+        storegui.set_sensitive(False)
+        
+        css_provider = Gtk.CssProvider()
+        css_provider.load_from_path('/usr/share/feren-store-new/css/application.css')
+        screen = Gdk.Screen.get_default()
+        style_context = Gtk.StyleContext()
+        style_context.add_provider_for_screen(screen, css_provider,
+                                          Gtk.STYLE_PROVIDER_PRIORITY_USER)
+        
+        mainwindow = Gtk.VBox()
+        mainwindow.set_spacing(4)
+        self.w.add(mainwindow)
+        
+        strlabelbox = Gtk.VBox()
+        first_string = Gtk.Label(label="An error occured")
+        first_string.get_style_context().add_class("14scale")
+        first_string_box = Gtk.Box()
+        first_string_box.pack_start(first_string, False, False, 0)
+        second_string = Gtk.Label(label="Unfortunately something went wrong. The error is as shown below:")
+        second_string_box = Gtk.Box()
+        second_string_box.pack_start(second_string, False, False, 0)
+        third_string = Gtk.Label(label=text)
+        third_string_box = Gtk.Box()
+        third_string_box.pack_start(third_string, False, False, 0)
+        strlabelbox.pack_start(first_string_box, False, False, 0)
+        strlabelbox.pack_start(second_string_box, False, False, 0)
+        mainwindow.pack_start(strlabelbox, False, False, 0)
+        mainwindow.pack_start(third_string, False, False, 0)
+        
+        # build scrolled window widget and add our appview container
+        sw = Gtk.ScrolledWindow()
+        sw.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+
+        # build a an autoexpanding box and add our scrolled window
+        b = Gtk.Box(homogeneous=False, spacing=4)
+        b.pack_start(sw, expand=True, fill=True, padding=0)
+        
+        errortext = Gtk.Label(label=desc)
+        sw.add(self.errortext)
+        
+        
+        okbtn = Gtk.Button(stock=Gtk.STOCK_OK)
+        
+        okbtn.connect('clicked', self.ok)
+        
+        buttonbox = Gtk.Box(spacing=4, homogeneous=True)
+        buttonbox.pack_end(okbtn, False, True, 0)
+        
+        mainwindow.pack_end(buttonbox, False, True, 0)
+        
+        mainwindow.set_margin_bottom(8)
+        mainwindow.set_margin_top(8)
+        mainwindow.set_margin_left(10)
+        mainwindow.set_margin_right(10)
+        
+        mainwindow.pack_end(b, True, True, 0)
+        
+        self.w.show_all()
+    
+    def ok(self, btn):
+        self.w.destroy()
 
 class ChangesConfirmDialog():
 
@@ -436,18 +515,28 @@ class ChangesConfirmDialog():
 
 class APTChecks():
     def checkinstalled(package):
-        output = subprocess.run(["/usr/lib/feren-store-new/check-updatable", package],
-                            stdout=subprocess.PIPE).stdout.decode("utf-8")
-        return output
+        #Hopefully apt_cache1 means apt_cache doesn't interfere in any way shape or form, though...
+        apt_cache1 = apt.Cache()
+        pkginfo = apt_cache1[package]
+        apt_cache1.upgrade(True) # dist-upgrade
+
+        if (apt_cache1[pkginfo.name].is_installed and apt_cache1[pkginfo.name].marked_upgrade and apt_cache1[pkginfo.name].candidate.version != apt_cache1[pkginfo.name].installed.version):
+            return(3)
+        elif apt_cache1[pkginfo.name].is_installed:
+            return(1)
+        else:
+            return(2)
 
 
 class APTMgmt():
-    def __init__(self, storeheader, storegui):
+    def __init__(self, storeheader, storegui, tasksmgmttool):
         self.apt_client = aptdaemon.client.AptClient()
         self.apt_transaction = None
         self.packagename = ""
         self.storegui = storegui
         self.storeheader = storeheader
+        self.tasksmgmttool = tasksmgmttool
+        self.changesinaction = False
         GObject.threads_init()
         
     def check_real_changes(self, package, operationtype):
@@ -488,9 +577,8 @@ class APTMgmt():
         ChangesConfirmDialog(self.packagename, "install", self.storegui, self.storeheader, packagesinstalled, packagesupgraded, packagesremoved, self)
         
     def confirm_install_package(self, packagename):
-        self.apt_client.install_packages([packagename],
-                                        reply_handler=self.confirm_changes,
-                                        error_handler=self.on_error) # dbus.DBusException
+        self.tasksmgmttool.add_task("apt:inst:"+packagename)
+        self.tasksmgmttool.start_now()
 
     def upgrade_package(self, packagename):
         self.packagename = packagename
@@ -508,9 +596,8 @@ class APTMgmt():
         ChangesConfirmDialog(self.packagename, "upgrade", self.storegui, self.storeheader, packagesinstalled, packagesupgraded, packagesremoved, self)
         
     def confirm_upgrade_package(self, packagename):
-        self.apt_client.upgrade_packages([packagename],
-                                        reply_handler=self.confirm_changes,
-                                        error_handler=self.on_error) # dbus.DBusException
+        self.tasksmgmttool.add_task("apt:upgr:"+packagename)
+        self.tasksmgmttool.start_now()
 
     def remove_package(self, packagename):
         self.packagename = packagename
@@ -529,20 +616,12 @@ class APTMgmt():
         ChangesConfirmDialog(self.packagename, "remove", self.storegui, self.storeheader, packagesinstalled, packagesupgraded, packagesremoved, self)
         
     def confirm_remove_package(self, packagename):
-        self.apt_client.remove_packages([packagename],
-                                        reply_handler=self.confirm_changes,
-                                        error_handler=self.on_error) # dbus.DBusException
+        self.tasksmgmttool.add_task("apt:rm:"+packagename)
+        self.tasksmgmttool.start_now()
 
     def confirm_changes(self, apt_transaction):
         self.apt_transaction = apt_transaction
         try:
-            #if [pkgs for pkgs in self.apt_transaction.dependencies if pkgs]:
-                #dia = ChangesConfirmDialog(self.apt_transaction, self.task)
-                #res = dia.run()
-                #dia.hide()
-                #if res != Gtk.ResponseType.OK:
-                    #GObject.idle_add(self.task.finished_cleanup_cb, self.task)
-                    #return
             self.run_transaction()
         except Exception as e:
             print(e)
@@ -552,29 +631,23 @@ class APTMgmt():
         self.storeheader.on_installer_finished(self.packagename)
 
     def on_error(self, error):
-        print("ERROR", error)
         self.storeheader.on_installer_finished(self.packagename)
         if self.apt_transaction.error_code == "error-not-authorized":
+            self.changesinaction = False
             # Silently ignore auth failures
 
             #self.task.error_message = None # Should already be none, but this is a reminder
             return
         elif not isinstance(error, aptdaemon.errors.TransactionFailed):
+            self.changesinaction = False
             # Catch internal errors of the client
             error = aptdaemon.errors.TransactionFailed(aptdaemon.enums.ERROR_UNKNOWN,
                                                        str(error))
 
-        #if self.task.progress_state != self.task.PROGRESS_STATE_FAILED:
-            #self.task.progress_state = self.task.PROGRESS_STATE_FAILED
-
-            #self.task.error_message = self.apt_transaction.error_details
-
-            #dia = AptErrorDialog(error)
-            #dia.run()
-            #dia.hide()
-            #GObject.idle_add(self.task.error_cleanup_cb, self.task)
+        APTErrorDialog(error)
 
     def run_transaction(self):
+        self.changesinaction = True
         self.apt_transaction.connect("finished", self.on_transaction_finished)
 
         self.apt_transaction.connect("progress-changed", self.on_transaction_progress)
@@ -586,11 +659,10 @@ class APTMgmt():
             self.storeheader.app_mgmt_progress.set_fraction(progress / 100)
 
     def on_transaction_error(self, apt_transaction, error_code, error_details):
-        pass
-        #if self.task.progress_state != self.task.PROGRESS_STATE_FAILED:
-            #self.on_error(apt_transaction.error)
+        self.on_error(apt_transaction.error)
 
     def on_transaction_finished(self, apt_transaction, exit_state):
+        self.changesinaction = False
         # finished signal is always called whether successful or not
         # Only call here if we succeeded, to prevent multiple calls
         if (exit_state == aptdaemon.enums.EXIT_SUCCESS) or apt_transaction.error_code == "error-not-authorized":

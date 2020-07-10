@@ -38,7 +38,7 @@ _ = t.gettext
 
 class PackageHeader(Gtk.Box):
 
-    def __init__(self, mainwind):
+    def __init__(self, mainwind, status_btn):
         global globalvars
         global jsonreader
         globalvars = storeutils.GlobalVariables()
@@ -146,8 +146,12 @@ class PackageHeader(Gtk.Box):
         
         #Variables
         self.current_package = ""
-        self.APTMgmt = APTMgmt(self, mainwind)
         self.sources_visible = True
+        self.status_btn = status_btn
+        
+        #Initialize Management
+        self.tasksmgmttool = storeutils.TasksMgmt(self)
+        self.APTMgmt = APTMgmt(self, mainwind, self.tasksmgmttool)
         
         GObject.threads_init()
         
@@ -308,10 +312,10 @@ class PackageHeader(Gtk.Box):
             #TODO: Add support for checking for updates
             #TODO: Add support here for checking the application is in the Tasks area as being currently managed
             #LAG HERE
-            ifinstalled = APTChecks.checkinstalled(package)[0]
-            if ifinstalled == "1":
+            ifinstalled = APTChecks.checkinstalled(package)
+            if ifinstalled == 1:
                 self.change_button_state("installed", package == "feren-store")
-            elif ifinstalled == "3":
+            elif ifinstalled == 3:
                 self.change_button_state("updatable", package == "feren-store")
             else:
                 #TODO: Check for package source if necessary
@@ -325,8 +329,8 @@ class PackageHeader(Gtk.Box):
             thread.start()
     
     def _on_installer_finished(self, package):
-            #Tried threads - just crashes
-            GLib.idle_add(self.__on_installer_finished, package)
+        #Tried threads - just crashes
+        GLib.idle_add(self.__on_installer_finished, package)
             
     def __on_installer_finished(self, package):
         #TODO: Make this work depending on the package type

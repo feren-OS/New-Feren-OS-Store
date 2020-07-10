@@ -2,7 +2,7 @@
 
 The Store application for Feren OS.
 
-Currently a very huge work-in-progress and currently non-functional. Pending a lot of further development before it's considered ready.
+Currently a very huge work-in-progress and currently barely functional in functionality. Pending a lot of further development before it's considered ready.
 
 ---
 
@@ -36,6 +36,7 @@ Ideas I want to implement into this application:
 - [ ] Snaps: ONLY allow Snaps that are known to be maintained by their official developers to be shown in the Store
 - [ ] Allow the user, in an advanced setting, to turn the Store from curated only into show all available packages (low priority idea here)
 - [ ] If this is on, any non-curated applications should have a persistent warning saying something along the lines of "This application is not curated by us. Feren OS's developers take no responsibility for any damage this package may do to your system. There is also no assurance that this application is officially maintained by its original developers. Please take caution when installing this application."
+- [ ] 'Advanced Mode' where all dependencies are mentioned in the confirmation dialog
 
 ---
 

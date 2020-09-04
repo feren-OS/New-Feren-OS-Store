@@ -43,4 +43,4 @@ Ideas I want to implement into this application:
 
 ---
 
-Current Status: Can only manage one APT package at a time and otherwise do nothing else.
+Current Status: Can install and remove APT packages in a queued task order

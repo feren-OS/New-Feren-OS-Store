@@ -145,6 +145,73 @@ class GSettingsMgmt():
     def set_value():
         pass
 
+
+####Package Tiles
+class PackageTile(Gtk.Button):
+    def set_icon(self, iconuri, packagename, iconobj):
+        tempdir = classnetwork.GlobalVariables.storagetemplocation
+                
+        desired_width = 48
+        desired_height = 48
+        try:
+            if not iconuri.startswith("file://"):
+                #Download the application icon
+                if not os.path.isfile(tempdir+"/"+packagename+"-icon"):
+                    urllib.request.urlretrieve(iconuri, tempdir+"/"+packagename+"-icon")
+                #Set it as the icon in the Store
+                icon_pixbuf = GdkPixbuf.Pixbuf.new_from_file(tempdir+"/"+packagename+"-icon")
+            else:
+                #Set it as the icon in the Store
+                icon_pixbuf = GdkPixbuf.Pixbuf.new_from_file(iconuri.split('file://')[1])
+        except Exception as exceptionstring:
+            print("Could not retrieve icon for", packagename, "-", exceptionstring)
+            #TODO: Change to store-missing-icon
+            icon_pixbuf = GdkPixbuf.Pixbuf.new_from_file("/usr/share/icons/Inspire/256/apps/feren-store.png")
+        icon_pixbuf = icon_pixbuf.scale_simple(desired_width, desired_height, GdkPixbuf.InterpType.BILINEAR)
+        iconobj.set_from_pixbuf(icon_pixbuf)
+
+    def __init__(self, packagename, packagetype):
+        Gtk.Button.__init__(self)
+
+        app_title, app_desc, app_iconurl = classnetwork.JSONReader.getPackageInfo(packagename)
+
+        label_name = Gtk.Label(app_title, xalign=0)
+        label_name.get_style_context().add_class("14scale")
+
+        label_summary = Gtk.Label(app_desc)
+
+        vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+
+        #Make sure application name and short descriptions are left-aligned in there
+        app_title_box = Gtk.Box()
+        app_desc_box = Gtk.Box()
+        app_title_box.pack_start(label_name, False, False, 0)
+        app_desc_box.pack_start(label_summary, False, False, 0)
+
+        #Make the column for application name and short description
+        vbox.pack_start(app_title_box, False, False, 0)
+        vbox.pack_end(app_desc_box, False, False, 0)
+        
+        #Stuff for centering items vertically
+        centering_titledesc_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        centering_titledesc_box.set_center_widget(vbox)
+
+
+
+        #Application Icon
+        icon = Gtk.Image()
+        icon.set_margin_top(4)
+        icon.set_margin_bottom(4)
+
+        self.set_icon(app_iconurl, packagename, icon)
+
+        hbox = Gtk.Box()
+        hbox.pack_start(icon, False, False, 4)
+        hbox.pack_start(centering_titledesc_box, False, False, 8)
+
+        self.add(hbox)
+
+
 ####Tasks System
 class TasksMgmt(object):
     
@@ -186,22 +253,29 @@ class TasksMgmt(object):
             classnetwork.StoreWindow.status_btn.set_label("")
         
         #Destoy the existing widgets
-        for widget in self.existingwidgets:
-            widget.destroy()
+        for child in classnetwork.StoreWindow.tasksitems.get_children():
+            classnetwork.StoreWindow.tasksitems.remove(child)
+            #for child2 in child:
+            #    child2.destroy()
+            #child.destroy()
         
         self.existingwidgets = []
         
         for task in self.currenttasks:
             if task.startswith('apt:inst:'):
                 packagenm = task.split('apt:inst:')[1]
+                tile = PackageTile(packagenm, "apt")
             elif task.startswith('apt:upgr:'):
                 packagenm = task.split('apt:upgr:')[1]
+                tile = PackageTile(packagenm, "apt")
             elif task.startswith('apt:rm:'):
                 packagenm = task.split('apt:rm:')[1]
-            taskbutton = Gtk.Button(label=packagenm)
-            taskbutton.connect('clicked', classnetwork.AppView._btn_goto_packageview, packagenm)
-            classnetwork.StoreWindow.tasksitems.pack_start(taskbutton, False, True, 0)
-            self.existingwidgets.append(taskbutton)
+                tile = PackageTile(packagenm, "apt")
+            tile.connect("clicked", classnetwork.AppView._btn_goto_packageview, packagenm)
+
+            box = Gtk.FlowBoxChild(child=tile)
+            box.show_all()
+            classnetwork.StoreWindow.tasksitems.insert(box, -1)
             
         classnetwork.StoreWindow.tasksitems.show_all()
         classnetwork.StoreWindow.updatesitems.show_all()
@@ -238,6 +312,9 @@ class TasksMgmt(object):
                 pass
             while classnetwork.APTMgmt.changesinaction == True:
                 pass
+
+            self.currenttasks.remove(task)
+            self.currenttask = ""
             if classnetwork.AppDetailsHeader.current_package == task.split('apt:inst:')[1]:
                 classnetwork.AppDetailsHeader.btns_get_package_status("apt", task.split('apt:inst:')[1])
         elif task.startswith("apt:upgr:"):
@@ -251,6 +328,9 @@ class TasksMgmt(object):
                 pass
             while classnetwork.APTMgmt.changesinaction == True:
                 pass
+
+            self.currenttasks.remove(task)
+            self.currenttask = ""
             if classnetwork.AppDetailsHeader.current_package == task.split('apt:upgr:')[1]:
                 classnetwork.AppDetailsHeader.btns_get_package_status("apt", task.split('apt:upgr:')[1])
         elif task.startswith("apt:rm:"):
@@ -264,30 +344,61 @@ class TasksMgmt(object):
                 pass
             while classnetwork.APTMgmt.changesinaction == True:
                 pass
+
+            self.currenttasks.remove(task)
+            self.currenttask = ""
             if classnetwork.AppDetailsHeader.current_package == task.split('apt:rm:')[1]:
                 classnetwork.AppDetailsHeader.btns_get_package_status("apt", task.split('apt:rm:')[1])
         elif task.startswith("flatpak:inst:"):
             pass
+
+            self.currenttasks.remove(task)
+            self.currenttask = ""
         elif task.startswith("flatpak:upgr:"):
             pass
+
+            self.currenttasks.remove(task)
+            self.currenttask = ""
         elif task.startswith("flatpak:rm:"):
             pass
+
+            self.currenttasks.remove(task)
+            self.currenttask = ""
         elif task.startswith("snap:inst:"):
             pass
+
+            self.currenttasks.remove(task)
+            self.currenttask = ""
         elif task.startswith("snap:upgr:"):
             pass
+
+            self.currenttasks.remove(task)
+            self.currenttask = ""
         elif task.startswith("snap:rm:"):
             pass
+
+            self.currenttasks.remove(task)
+            self.currenttask = ""
         elif task.startswith("ice:inst:"):
             pass
+
+            self.currenttasks.remove(task)
+            self.currenttask = ""
         elif task.startswith("ice:rm:"):
             pass
+
+            self.currenttasks.remove(task)
+            self.currenttask = ""
         elif task.startswith("apt:aptsource:"):
             pass
+
+            self.currenttasks.remove(task)
+            self.currenttask = ""
         elif task.startswith("flatpak:remote:"):
             pass
-        self.currenttasks.remove(task)
-        self.currenttask = ""
+
+            self.currenttasks.remove(task)
+            self.currenttask = ""
         
     def do_tasks(self):
         self.inaction = True
@@ -1299,22 +1410,42 @@ class StoreWindow(object):
         taskslabel.get_style_context().add_class("14scale")
         taskslabel_box.pack_start(taskslabel, False, False, 0)
         
-        self.tasksitems = Gtk.VBox(spacing=4)
+        self.tasksitems = Gtk.FlowBox()
+        self.tasksitems.set_margin_top(4)
+        self.tasksitems.set_margin_bottom(4)
+        self.tasksitems.set_min_children_per_line(1)
+        self.tasksitems.set_max_children_per_line(1)
+        self.tasksitems.set_row_spacing(4)
+        self.tasksitems.set_homogeneous(True)
+        self.tasksitems.set_valign(Gtk.Align.START)
         
         updateslabel_box = Gtk.Box()
         updateslabel = Gtk.Label(label="Updates are available for:")
         updateslabel.get_style_context().add_class("14scale")
         updateslabel_box.pack_start(updateslabel, False, False, 0)
         
-        self.updatesitems = Gtk.VBox(spacing=4)
+        self.updatesitems = Gtk.FlowBox()
+        self.updatesitems.set_margin_top(4)
+        self.updatesitems.set_margin_bottom(4)
+        self.updatesitems.set_min_children_per_line(1)
+        self.updatesitems.set_max_children_per_line(1)
+        self.updatesitems.set_row_spacing(4)
+        self.updatesitems.set_homogeneous(True)
+        self.updatesitems.set_valign(Gtk.Align.START)
         
         installedlabel_box = Gtk.Box()
         installedlabel = Gtk.Label(label="Currently installed:")
         installedlabel.get_style_context().add_class("14scale")
         installedlabel_box.pack_start(installedlabel, False, False, 0)
         
-        self.installeditems = Gtk.VBox(spacing=4)
-        
+        self.installeditems = Gtk.FlowBox()
+        self.installeditems.set_margin_top(4)
+        self.installeditems.set_margin_bottom(4)
+        self.installeditems.set_min_children_per_line(1)
+        self.installeditems.set_max_children_per_line(1)
+        self.installeditems.set_row_spacing(4)
+        self.installeditems.set_homogeneous(True)
+        self.installeditems.set_valign(Gtk.Align.START)
                 
         taskspage.pack_start(taskslabel_box, False, True, 0)
         taskspage.pack_start(self.tasksitems, False, True, 0)

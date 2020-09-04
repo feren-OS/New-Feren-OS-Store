@@ -25,8 +25,6 @@ from threading import Thread
 import urllib
 import time
 
-from feren_store.storeutils import JSONReader, GlobalVariables
-
 #if os.path.isfile("/usr/bin/snapd"):
 #    from feren_store import snapmgmt
 #if os.path.isfile("/usr/bin/flatpak"):
@@ -122,12 +120,10 @@ class ChangesConfirmDialog():
     transaction.
     """
 
-    def __init__(self, packagename, optype, storegui, storeheader, packagesinstalled, packagesupgraded, packagesremoved, aptmgmt):
-        self.storegui = storegui
-        self.storeheader = storeheader
+    def __init__(self, packagename, optype, classnetwork, packagesinstalled, packagesupgraded, packagesremoved, aptmgmt):
+        self.classnetwork = classnetwork
         self.packagename = packagename
         self.aptmgmt = aptmgmt
-        self.jsonutil = JSONReader()
         
         packagesdisplayedinst = []
         packagesdisplayedupgr = []
@@ -135,21 +131,21 @@ class ChangesConfirmDialog():
         for packagenm in packagesinstalled:
             if not packagenm == packagename:
                 try:
-                    test = self.jsonutil.availablesources[packagenm]["apt"]
+                    test = classnetwork.JSONReader().availablesources[packagenm]["apt"]
                     packagesdisplayedinst.append(packagenm)
                 except:
                     pass
         for packagenm in packagesupgraded:
             if not packagenm == packagename:
                 try:
-                    test = self.jsonutil.availablesources[packagenm]["apt"]
+                    test = classnetwork.JSONReader().availablesources[packagenm]["apt"]
                     packagesdisplayedupgr.append(packagenm)
                 except:
                     pass
         for packagenm in packagesremoved:
             if not packagenm == packagename:
                 try:
-                    test = self.jsonutil.availablesources[packagenm]["apt"]
+                    test = classnetwork.JSONReader().availablesources[packagenm]["apt"]
                     packagesdisplayedrm.append(packagenm)
                 except:
                     pass
@@ -173,7 +169,7 @@ class ChangesConfirmDialog():
         self.w.set_default_size(500, 340)
         self.w.set_destroy_with_parent(True)
         self.w.set_resizable(False)
-        storegui.set_sensitive(False)
+        self.classnetwork.StoreWindow.w.set_sensitive(False)
         self.w.connect('delete-event', self.close)
         
         css_provider = Gtk.CssProvider()
@@ -308,8 +304,8 @@ class ChangesConfirmDialog():
                     #Application Description
                     app_desc = Gtk.Label()
                     
-                    app_title.set_label(self.jsonutil.aptdata[packagenm]["realname"])
-                    app_desc.set_label(self.jsonutil.aptdata[packagenm]["shortdescription"])
+                    app_title.set_label(self.classnetwork.JSONReader().aptdata[packagenm]["realname"])
+                    app_desc.set_label(self.classnetwork.JSONReader().aptdata[packagenm]["shortdescription"])
                     
                     #Make sure application name and short descriptions are left-aligned in there
                     app_title_box = Gtk.Box()
@@ -336,7 +332,7 @@ class ChangesConfirmDialog():
                     packagesdisplayedinstbox.pack_start(box_application_icontext, False, True, 0)
                     
                     Thread(target=self.get_img,
-                                args=(self.jsonutil.aptdata[packagenm]["iconurl"], app_iconimg, app_iconimg_loading, app_iconimg_loading_box, app_iconimg_stack, packagenm)).start()
+                                args=(self.classnetwork.JSONReader().aptdata[packagenm]["iconurl"], app_iconimg, app_iconimg_loading, app_iconimg_loading_box, app_iconimg_stack, packagenm)).start()
                 except:
                     pass
                     
@@ -371,8 +367,8 @@ class ChangesConfirmDialog():
                     #Application Description
                     app_desc = Gtk.Label()
                     
-                    app_title.set_label(self.jsonutil.aptdata[packagenm]["realname"])
-                    app_desc.set_label(self.jsonutil.aptdata[packagenm]["shortdescription"])
+                    app_title.set_label(self.classnetwork.JSONReader().aptdata[packagenm]["realname"])
+                    app_desc.set_label(self.classnetwork.JSONReader().aptdata[packagenm]["shortdescription"])
                     
                     #Make sure application name and short descriptions are left-aligned in there
                     app_title_box = Gtk.Box()
@@ -401,7 +397,7 @@ class ChangesConfirmDialog():
                     packagesdisplayedupgr.append(packagenm)
                     
                     Thread(target=self.get_img,
-                                args=(self.jsonutil.aptdata[packagenm]["iconurl"], app_iconimg, app_iconimg_loading, app_iconimg_loading_box, app_iconimg_stack, packagenm)).start()
+                                args=(self.classnetwork.JSONReader().aptdata[packagenm]["iconurl"], app_iconimg, app_iconimg_loading, app_iconimg_loading_box, app_iconimg_stack, packagenm)).start()
                 except:
                     pass
                     
@@ -436,8 +432,8 @@ class ChangesConfirmDialog():
                     #Application Description
                     app_desc = Gtk.Label()
                     
-                    app_title.set_label(self.jsonutil.aptdata[packagenm]["realname"])
-                    app_desc.set_label(self.jsonutil.aptdata[packagenm]["shortdescription"])
+                    app_title.set_label(self.classnetwork.JSONReader().aptdata[packagenm]["realname"])
+                    app_desc.set_label(self.classnetwork.JSONReader().aptdata[packagenm]["shortdescription"])
                     
                     #Make sure application name and short descriptions are left-aligned in there
                     app_title_box = Gtk.Box()
@@ -466,7 +462,7 @@ class ChangesConfirmDialog():
                     packagesdisplayedrm.append(packagenm)
                     
                     Thread(target=self.get_img,
-                                args=(self.jsonutil.aptdata[packagenm]["iconurl"], app_iconimg, app_iconimg_loading, app_iconimg_loading_box, app_iconimg_stack, packagenm)).start()
+                                args=(self.classnetwork.JSONReader().aptdata[packagenm]["iconurl"], app_iconimg, app_iconimg_loading, app_iconimg_loading_box, app_iconimg_stack, packagenm)).start()
                 except:
                     pass
                     
@@ -492,32 +488,35 @@ class ChangesConfirmDialog():
         self.w.destroy()
     
     def confirm_install(self):
-        self.storegui.set_sensitive(True)
+        self.classnetwork.StoreWindow.w.set_sensitive(True)
         self.aptmgmt.confirm_install_package(self.packagename)
     
     def confirm_upgrade(self):
-        self.storegui.set_sensitive(True)
+        self.classnetwork.StoreWindow.w.set_sensitive(True)
         self.aptmgmt.confirm_upgrade_package(self.packagename)
     
     def confirm_remove(self):
-        self.storegui.set_sensitive(True)
+        self.classnetwork.StoreWindow.w.set_sensitive(True)
         self.aptmgmt.confirm_remove_package(self.packagename)
     
     def reject_operation(self, btn):
-        self.storegui.set_sensitive(True)
-        self.storeheader.on_installer_finished(self.packagename)
+        self.classnetwork.StoreWindow.w.set_sensitive(True)
+        self.classnetwork.AppDetailsHeader.on_installer_finished(self.packagename)
         self.w.destroy()
 
     def close(self, p1, p2):
-        self.storegui.set_sensitive(True)
-        self.storeheader.on_installer_finished(self.packagename)
+        self.classnetwork.StoreWindow.w.set_sensitive(True)
+        self.classnetwork.AppDetailsHeader.on_installer_finished(self.packagename)
 
 
 class APTChecks():
     def checkinstalled(package):
         #Hopefully apt_cache1 means apt_cache doesn't interfere in any way shape or form, though...
         apt_cache1 = apt.Cache()
-        pkginfo = apt_cache1[package]
+        try:
+            pkginfo = apt_cache1[package]
+        except:
+            return(404)
         apt_cache1.upgrade(True) # dist-upgrade
 
         if (apt_cache1[pkginfo.name].is_installed and apt_cache1[pkginfo.name].marked_upgrade and apt_cache1[pkginfo.name].candidate.version != apt_cache1[pkginfo.name].installed.version):
@@ -529,13 +528,11 @@ class APTChecks():
 
 
 class APTMgmt():
-    def __init__(self, storeheader, storegui, tasksmgmttool):
+    def __init__(self, classnetwork):
         self.apt_client = aptdaemon.client.AptClient()
         self.apt_transaction = None
         self.packagename = ""
-        self.storegui = storegui
-        self.storeheader = storeheader
-        self.tasksmgmttool = tasksmgmttool
+        self.classnetwork = classnetwork
         self.changesinaction = False
         GObject.threads_init()
         
@@ -574,11 +571,16 @@ class APTMgmt():
         
     def __install_package(self, packagesinstalled, packagesupgraded, packagesremoved):
         #TODO: Add advanced mode setting which makes the dialog show ALL of the installs/upgrades/removals/etc.
-        ChangesConfirmDialog(self.packagename, "install", self.storegui, self.storeheader, packagesinstalled, packagesupgraded, packagesremoved, self)
+        ChangesConfirmDialog(self.packagename, "install", self.classnetwork, packagesinstalled, packagesupgraded, packagesremoved, self)
         
     def confirm_install_package(self, packagename):
-        self.tasksmgmttool.add_task("apt:inst:"+packagename)
-        self.tasksmgmttool.start_now()
+        self.classnetwork.TasksMgmt.add_task("apt:inst:"+packagename)
+        if self.classnetwork.AppDetailsHeader.current_package == packagename:
+            if self.classnetwork.TasksMgmt.currenttask != "":
+                self.classnetwork.AppDetailsHeader.change_button_state("queued", False)
+            else:
+                self.classnetwork.AppDetailsHeader.change_button_state("busy", False)
+        self.classnetwork.TasksMgmt.start_now()
 
     def upgrade_package(self, packagename):
         self.packagename = packagename
@@ -593,11 +595,16 @@ class APTMgmt():
         GLib.idle_add(self.__upgrade_package, packagesinstalled, packagesupgraded, packagesremoved)
         
     def __upgrade_package(self, packagesinstalled, packagesupgraded, packagesremoved):
-        ChangesConfirmDialog(self.packagename, "upgrade", self.storegui, self.storeheader, packagesinstalled, packagesupgraded, packagesremoved, self)
+        ChangesConfirmDialog(self.packagename, "upgrade", self.classnetwork, packagesinstalled, packagesupgraded, packagesremoved, self)
         
     def confirm_upgrade_package(self, packagename):
-        self.tasksmgmttool.add_task("apt:upgr:"+packagename)
-        self.tasksmgmttool.start_now()
+        self.classnetwork.TasksMgmt.add_task("apt:upgr:"+packagename)
+        if self.classnetwork.AppDetailsHeader.current_package == packagename:
+            if self.classnetwork.TasksMgmt.currenttask != "":
+                self.classnetwork.AppDetailsHeader.change_button_state("queued", False)
+            else:
+                self.classnetwork.AppDetailsHeader.change_button_state("busy", False)
+        self.classnetwork.TasksMgmt.start_now()
 
     def remove_package(self, packagename):
         self.packagename = packagename
@@ -613,11 +620,16 @@ class APTMgmt():
         
     def __remove_package(self, packagesinstalled, packagesupgraded, packagesremoved):
         
-        ChangesConfirmDialog(self.packagename, "remove", self.storegui, self.storeheader, packagesinstalled, packagesupgraded, packagesremoved, self)
+        ChangesConfirmDialog(self.packagename, "remove", self.classnetwork, packagesinstalled, packagesupgraded, packagesremoved, self)
         
     def confirm_remove_package(self, packagename):
-        self.tasksmgmttool.add_task("apt:rm:"+packagename)
-        self.tasksmgmttool.start_now()
+        self.classnetwork.TasksMgmt.add_task("apt:rm:"+packagename)
+        if self.classnetwork.AppDetailsHeader.current_package == packagename:
+            if self.classnetwork.TasksMgmt.currenttask != "":
+                self.classnetwork.AppDetailsHeader.change_button_state("queued", False)
+            else:
+                self.classnetwork.AppDetailsHeader.change_button_state("busy", False)
+        self.classnetwork.TasksMgmt.start_now()
 
     def confirm_changes(self, apt_transaction):
         self.apt_transaction = apt_transaction
@@ -628,10 +640,10 @@ class APTMgmt():
             
     def cancel_changes(self):
         self.storegui.set_sensitive(True)
-        self.storeheader.on_installer_finished(self.packagename)
+        self.classnetwork.AppDetailsHeader.on_installer_finished(self.packagename)
 
     def on_error(self, error):
-        self.storeheader.on_installer_finished(self.packagename)
+        self.classnetwork.AppDetailsHeader.on_installer_finished(self.packagename)
         if self.apt_transaction.error_code == "error-not-authorized":
             self.changesinaction = False
             # Silently ignore auth failures
@@ -656,7 +668,7 @@ class APTMgmt():
     
     def on_transaction_progress(self, apt_transaction, progress):
         if not apt_transaction.error:
-            self.storeheader.app_mgmt_progress.set_fraction(progress / 100)
+            self.classnetwork.AppDetailsHeader.app_mgmt_progress.set_fraction(progress / 100)
 
     def on_transaction_error(self, apt_transaction, error_code, error_details):
         self.on_error(apt_transaction.error)
@@ -666,4 +678,4 @@ class APTMgmt():
         # finished signal is always called whether successful or not
         # Only call here if we succeeded, to prevent multiple calls
         if (exit_state == aptdaemon.enums.EXIT_SUCCESS) or apt_transaction.error_code == "error-not-authorized":
-            self.storeheader.on_installer_finished(self.packagename)
+            self.classnetwork.AppDetailsHeader.on_installer_finished(self.packagename)

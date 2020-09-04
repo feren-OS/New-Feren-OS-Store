@@ -50,35 +50,622 @@ from queue import Queue, Empty
 from notify2 import Notification, init as NotifyInit
 from os.path import expanduser
 
-from feren_store import applicationgui, storeutils
+from feren_store.aptmgmt import APTMgmt, APTChecks
 
 import apt
 
-#TODO: Remove these
-class SnapManagement():
-    def installsnap(self):
-        pass
-    
-class FlatpakManagement():
-    def installflatpak(self):
-        pass
-    
-class ICEManagement():
-    def addiceshortcut(self):
-        pass
-    
-class APTManagement():
-    def installapt(self):
-        pass
-    
-class DEBManagement():
-    def installdeb(self):
-        pass        
+####JSON Reader
+class JSONReader():
+    '''
+    Map some short codes with packages. Install/Remove buttons
+    will be represented by short code like #code-remove and
+    #code-install. This will allow one to check installation status
+    of each package using a loop instead of checking separately
+    '''
 
+    def __init__(self):
+        with open("/usr/share/feren-store-new/curated/apt/packages.json") as file:
+            self.aptdata = json.load(file)
+        #with open("/usr/share/feren-store-new/curated/snap/packages.json") as file:
+        #    self.snapdata = json.load(file)
+        #with open("/usr/share/feren-store-new/curated/flatpak/packages.json") as file:
+        #    self.flatpakdata = json.load(file)
+        #with open("/usr/share/feren-store-new/curated/ice/packages.json") as file:
+        #    self.icedata = json.load(file)
+        with open("/usr/share/feren-store-new/curated/sources/packages.json") as file:
+            self.availablesources = json.load(file)
+
+    def getPackageInfo(self, packagename):
+        #TODO: Change this to have an extra argument for which package type this should be for
+        try:
+            return self.aptdata[packagename]["realname"], self.aptdata[packagename]["shortdescription"], self.aptdata[packagename]["iconurl"]
+        except KeyError:
+            return None, None, None
+        
+    def getPackageSiteInfo(self, packagename):
+        #TODO: Change this to have an extra argument for which package type this should be for
+        try:
+            return self.aptdata[packagename]["description"], self.aptdata[packagename]["author"], self.aptdata[packagename]["bugreporturl"], self.aptdata[packagename]["website"], self.aptdata[packagename]["tos"], self.aptdata[packagename]["category"], self.aptdata[packagename]["image1"], self.aptdata[packagename]["image2"], self.aptdata[packagename]["image3"]
+        except KeyError:
+            return None, None, None
+        
+####Source Names translator
+class ApplicationSourceTranslator():
+    #Class for all things translating an application source internal name into human readable, keyrings and repositories to add
+    
+    def TranslateToHumanReadable(self, appsourceintname):
+        if appsourceintname == "standard":
+            return "Standard Install"
+        elif appsourceintname == "google-chrome":
+            return "Google Chrome Repository"
+        elif appsourceintname == "snapstore":
+            return "Snapcraft"
+        elif appsourceintname == "flatpak-flathub":
+            return "Flathub"
+        else:
+            return appsourceintname
+        #TODO: Add more
+   
+
+####Global Variables
+class GlobalVariables(object):
+    def __init__(self):
+        self.storagetemplocation = "/tmp/feren-store-"+getpass.getuser()
+        #Make the folder if it doesn't exist
+        if not os.path.isdir("/tmp/feren-store-"+getpass.getuser()):
+            os.mkdir("/tmp/feren-store-"+getpass.getuser())
+
+        
+####Application Playlists
+#class ApplicationPlaylists():
+    #TODO: Add Import and Export code
+    
+
+####Package Managers checker - check that the package managers are present
+class CheckPackageManagers():
+    def check_snap():
+        if os.path.isfile("/usr/bin/snap"):
+            return True
+        else:
+            return False
+    
+    def check_flatpak():
+        if os.path.isfile("/usr/bin/flatpak"):
+            return True
+        else:
+            return False
+        
+    
+####GSettings Management - get and set values
+#TODO: Check if we even need this class - might be an upstream module that we can just use instead
+class GSettingsMgmt():
+    def get_value():
+        pass
+    
+    def set_value():
+        pass
+
+####Tasks System
+class TasksMgmt(object):
+    
+    def __init__(self):
+        self.currenttasks = []
+        self.currenttask = ""
+        self.dontcontinue = False
+        self.inaction = False
+        self.existingwidgets = []
+        
+        GObject.threads_init()
+        
+    def add_task(self, newtask):
+        if not newtask in self.currenttasks:
+            self.currenttasks.append(newtask)
+            self.gui_refresh_tasks()
+        
+    def start_now(self):
+        #Code for initiating the installation process if it isn't already initialised
+        if self.inaction == False:
+            self.do_tasks()
+        else:
+            return
+        
+    def gui_refresh_tasks(self):
+        thread = Thread(target=self._gui_refresh_tasks,
+                        args=())
+        thread.daemon = True
+        thread.start()
+    
+    def _gui_refresh_tasks(self):
+        #Tried threads - just crashes
+        GLib.idle_add(self.__gui_refresh_tasks)
+    
+    def __gui_refresh_tasks(self):
+        if len(self.currenttasks) >= 1:
+            classnetwork.StoreWindow.status_btn.set_label(str(len(self.currenttasks)))
+        else:
+            classnetwork.StoreWindow.status_btn.set_label("")
+        
+        #Destoy the existing widgets
+        for widget in self.existingwidgets:
+            widget.destroy()
+        
+        self.existingwidgets = []
+        
+        for task in self.currenttasks:
+            if task.startswith('apt:inst:'):
+                packagenm = task.split('apt:inst:')[1]
+            elif task.startswith('apt:upgr:'):
+                packagenm = task.split('apt:upgr:')[1]
+            elif task.startswith('apt:rm:'):
+                packagenm = task.split('apt:rm:')[1]
+            taskbutton = Gtk.Button(label=packagenm)
+            taskbutton.connect('clicked', classnetwork.AppView._btn_goto_packageview, packagenm)
+            classnetwork.StoreWindow.tasksitems.pack_start(taskbutton, False, True, 0)
+            self.existingwidgets.append(taskbutton)
+            
+        classnetwork.StoreWindow.tasksitems.show_all()
+        classnetwork.StoreWindow.updatesitems.show_all()
+        classnetwork.StoreWindow.installeditems.show_all()
+        
+    def gui_refresh_buttons(self):
+        thread = Thread(target=self._gui_refresh_buttons,
+                        args=())
+        thread.daemon = True
+        thread.start()
+        
+    def _gui_refresh_buttons(self):
+        #Tried threads - just crashes
+        GLib.idle_add(self.__gui_refresh_buttons)
+        
+    def __gui_refresh_buttons(self):
+        pass
+        
+        
+    def do_task(self, task):
+        self.currenttask = task
+        #Code for doing the task
+        if task.startswith("apt:inst:"):
+            if classnetwork.AppDetailsHeader.current_package == task.split('apt:inst:')[1]:
+                classnetwork.AppDetailsHeader.change_button_state("busy", False)
+
+            classnetwork.APTMgmt.apt_client.install_packages([task.split('apt:inst:')[1]],
+                                        reply_handler=classnetwork.APTMgmt.confirm_changes,
+                                        error_handler=classnetwork.APTMgmt.on_error) # dbus.DBusException
+            if classnetwork.AppDetailsHeader.current_package == task.split('apt:inst:')[1]:
+                classnetwork.AppDetailsHeader.change_button_state("busy", False)
+            #Since the do_task thing doesn't hold up code while it's doing it...
+            while classnetwork.APTMgmt.changesinaction == False:
+                pass
+            while classnetwork.APTMgmt.changesinaction == True:
+                pass
+            if classnetwork.AppDetailsHeader.current_package == task.split('apt:inst:')[1]:
+                classnetwork.AppDetailsHeader.btns_get_package_status("apt", task.split('apt:inst:')[1])
+        elif task.startswith("apt:upgr:"):
+            classnetwork.APTMgmt.apt_client.upgrade_packages([task.split('apt:upgr:')[1]],
+                                        reply_handler=classnetwork.APTMgmt.confirm_changes,
+                                        error_handler=classnetwork.APTMgmt.on_error) # dbus.DBusException
+            if classnetwork.AppDetailsHeader.current_package == task.split('apt:upgr:')[1]:
+                classnetwork.AppDetailsHeader.change_button_state("busy", False)
+            #Since the do_task thing doesn't hold up code while it's doing it...
+            while classnetwork.APTMgmt.changesinaction == False:
+                pass
+            while classnetwork.APTMgmt.changesinaction == True:
+                pass
+            if classnetwork.AppDetailsHeader.current_package == task.split('apt:upgr:')[1]:
+                classnetwork.AppDetailsHeader.btns_get_package_status("apt", task.split('apt:upgr:')[1])
+        elif task.startswith("apt:rm:"):
+            classnetwork.APTMgmt.apt_client.remove_packages([task.split('apt:rm:')[1]],
+                                        reply_handler=classnetwork.APTMgmt.confirm_changes,
+                                        error_handler=classnetwork.APTMgmt.on_error) # dbus.DBusException
+            if classnetwork.AppDetailsHeader.current_package == task.split('apt:rm:')[1]:
+                classnetwork.AppDetailsHeader.change_button_state("busy", False)
+            #Since the do_task thing doesn't hold up code while it's doing it...
+            while classnetwork.APTMgmt.changesinaction == False:
+                pass
+            while classnetwork.APTMgmt.changesinaction == True:
+                pass
+            if classnetwork.AppDetailsHeader.current_package == task.split('apt:rm:')[1]:
+                classnetwork.AppDetailsHeader.btns_get_package_status("apt", task.split('apt:rm:')[1])
+        elif task.startswith("flatpak:inst:"):
+            pass
+        elif task.startswith("flatpak:upgr:"):
+            pass
+        elif task.startswith("flatpak:rm:"):
+            pass
+        elif task.startswith("snap:inst:"):
+            pass
+        elif task.startswith("snap:upgr:"):
+            pass
+        elif task.startswith("snap:rm:"):
+            pass
+        elif task.startswith("ice:inst:"):
+            pass
+        elif task.startswith("ice:rm:"):
+            pass
+        elif task.startswith("apt:aptsource:"):
+            pass
+        elif task.startswith("flatpak:remote:"):
+            pass
+        self.currenttasks.remove(task)
+        self.currenttask = ""
+        
+    def do_tasks(self):
+        self.inaction = True
+        while self.currenttasks != []:
+            self.do_task(self.currenttasks[0])
+            self.gui_refresh_tasks()
+            
+        self.inaction = False
+        
+    def closing_check(self):
+        if self.currenttasks != []:
+            #Prevent closing and stop the tasks after the existing task is done, followed by closing Store
+            pass
+        
+
+####Search Header
+#class SearchHeader(Gtk.Box):
+    #TODO: Add this
+    
+
+####Application Details Header
+class AppDetailsHeader(Gtk.Box):
+
+    def __init__(self):
+        
+        Gtk.Box.__init__(self)
+        
+        classnetwork.AppDetailsHeader = self
+        
+        self.get_style_context().add_class("only-toolbar")
+        
+        
+        box_application_namedesc = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        
+        #Application Icon
+        self.app_iconimg = Gtk.Image()
+        self.app_iconimg_loading = Gtk.Spinner()
+        self.app_iconimg_stack = Gtk.Stack()
+        self.app_iconimg_loading_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        self.app_iconimg_loading_box.set_center_widget(self.app_iconimg_loading)
+        self.app_iconimg_stack.add_named(self.app_iconimg_loading_box, "Loading")
+        self.app_iconimg_stack.add_named(self.app_iconimg, "AppIcon")
+        self.app_iconimg_stack.set_visible_child(self.app_iconimg)
+        
+        #Application Title
+        self.app_title = Gtk.Label()
+        self.app_title.get_style_context().add_class("14scale")
+        
+        #Application Description
+        self.app_desc = Gtk.Label()
+        
+        #Application Management Buttons
+        self.app_mgmt_button = Gtk.Stack()
+        self.app_mgmt_installbtn = Gtk.Button(label=("Install"))
+        self.app_mgmt_installunavailbtn = Gtk.Button(label=("Install..."))
+        self.app_mgmt_removebtn = Gtk.Button(label=("Remove"))
+        self.app_mgmt_updatebtn = Gtk.Button(label=("Update"))
+        self.app_mgmt_installbtn.get_style_context().add_class(Gtk.STYLE_CLASS_SUGGESTED_ACTION)
+        self.app_mgmt_installunavailbtn.get_style_context().add_class(Gtk.STYLE_CLASS_SUGGESTED_ACTION)
+        self.app_mgmt_updatebtn.get_style_context().add_class(Gtk.STYLE_CLASS_SUGGESTED_ACTION)
+        self.app_mgmt_removebtn.get_style_context().add_class(Gtk.STYLE_CLASS_DESTRUCTIVE_ACTION)
+        self.app_mgmt_preparingbtns = Gtk.Spinner()
+        self.app_mgmt_button.add_named(self.app_mgmt_preparingbtns, "Preparing")
+        self.app_mgmt_button.add_named(self.app_mgmt_installbtn, "Standard")
+        self.app_mgmt_button.add_named(self.app_mgmt_installunavailbtn, "InstallRepo")
+        self.app_mgmt_button.add_named(self.app_mgmt_removebtn, "Remove")
+        self.app_mgmt_button.set_visible_child(self.app_mgmt_preparingbtns)
+        self.app_mgmt_preparingbtns.start()
+        
+        #Application Source Combobox
+        self.app_source_dropdown = Gtk.ComboBox()
+        #NOTE TO SELF: NEVER put this in the dropdown refreshing code - it'll cause duplicated labels
+        cell = Gtk.CellRendererText()
+        self.app_source_dropdown.pack_start(cell, True)
+        self.app_source_dropdown.add_attribute(cell, "text", 0)
+        
+        #Progress Bar
+        self.app_mgmt_progress = Gtk.ProgressBar()
+        self.app_mgmt_progress_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        self.app_mgmt_progress_box.set_center_widget(self.app_mgmt_progress)
+        
+        #Pending Status
+        self.app_mgmt_pending_box = Gtk.Box(spacing=8)
+        app_mgmt_pending_labelbox = Gtk.VBox()
+        app_mgmt_pending_label = Gtk.Label(label="Queued")
+        app_mgmt_pending_cancel = Gtk.Button(label="Cancel")
+        app_mgmt_pending_cancel.connect('clicked', self.cancel_from_queue_pressed)
+        app_mgmt_pending_labelbox.set_center_widget(app_mgmt_pending_label)
+        self.app_mgmt_pending_box.pack_start(app_mgmt_pending_labelbox, False, False, 0)
+        self.app_mgmt_pending_box.pack_end(app_mgmt_pending_cancel, False, False, 0)
+        self.app_mgmt_button.add_named(self.app_mgmt_pending_box, "Pending")
+        
+        #Make sure application name and short descriptions are left-aligned in there
+        app_title_box = Gtk.Box()
+        app_desc_box = Gtk.Box()
+        app_title_box.pack_start(self.app_title, False, False, 0)
+        app_desc_box.pack_start(self.app_desc, False, False, 0)
+        
+        #Make the column for application name and short description
+        box_application_namedesc.pack_start(app_title_box, False, False, 0)
+        box_application_namedesc.pack_end(app_desc_box, False, False, 0)
+        
+        #Stuff for centering items vertically
+        centering_titledesc_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        centering_titledesc_box.set_center_widget(box_application_namedesc)
+        centering_btnactions_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        
+        inside_btnactions_box = Gtk.Box()
+        inside_btnactions_box.pack_start(self.app_source_dropdown, False, False, 4)
+        inside_btnactions_box.pack_start(self.app_mgmt_progress_box, False, False, 4)
+        inside_btnactions_box.pack_start(self.app_mgmt_updatebtn, False, False, 4)
+        inside_btnactions_box.pack_start(self.app_mgmt_button, False, False, 4)
+        
+        centering_btnactions_box.set_center_widget(inside_btnactions_box)
+        
+        #Header building
+        self.pack_start(self.app_iconimg_stack, False, False, 8)
+        self.pack_start(centering_titledesc_box, False, True, 4)
+        self.pack_end(centering_btnactions_box, False, True, 4)
+        
+        #Margins
+        self.app_iconimg.set_margin_top(8)
+        self.app_iconimg.set_margin_bottom(8)
+        
+        #Header image temp
+        desired_width = 48
+        desired_height = 48
+        icon_pixbuf = GdkPixbuf.Pixbuf.new_from_file("/usr/share/feren-os/logos/blank.png")
+        icon_pixbuf = icon_pixbuf.scale_simple(desired_width, desired_height, GdkPixbuf.InterpType.BILINEAR)
+        self.app_iconimg.set_from_pixbuf(icon_pixbuf)
+        
+        #Button Assignment
+        self.app_mgmt_installbtn.connect('clicked', self.install_pressed)
+        self.app_mgmt_installunavailbtn.connect('clicked', self.install_with_source_pressed)
+        self.app_mgmt_updatebtn.connect('clicked', self.update_pressed)
+        self.app_mgmt_removebtn.connect('clicked', self.remove_pressed)
+        
+        #Variables
+        self.current_package = ""
+        self.sources_visible = True
+        
+        #Initialize Management
+        self.APTMgmt = APTMgmt(classnetwork)
+        classnetwork.APTMgmt = self.APTMgmt
+        
+        GObject.threads_init()
+        
+    def set_current_package(self, packagename):
+        self.current_package = packagename
+
+    def show(self):
+        self.set_visible(True)
+    
+    def hide(self):
+        self.set_visible(False)
+    
+    def set_icon(self, iconuri, packagetoview):
+        tempdir = classnetwork.GlobalVariables.storagetemplocation
+        
+        self.app_iconimg_loading.start()
+        self.app_iconimg_stack.set_visible_child(self.app_iconimg_loading_box)
+        #Set the icon shown on the package header
+                
+        desired_width = 48
+        desired_height = 48
+        try:
+            if not iconuri.startswith("file://"):
+                #Download the application icon
+                if not os.path.isfile(tempdir+"/"+packagetoview+"-icon"):
+                    urllib.request.urlretrieve(iconuri, tempdir+"/"+packagetoview+"-icon")
+                #Set it as the icon in the Store
+                icon_pixbuf = GdkPixbuf.Pixbuf.new_from_file(tempdir+"/"+packagetoview+"-icon")
+            else:
+                #Set it as the icon in the Store
+                icon_pixbuf = GdkPixbuf.Pixbuf.new_from_file(iconuri.split('file://')[1])
+        except Exception as exceptionstring:
+            print("Could not retrieve icon for", packagetoview, "-", exceptionstring)
+            #TODO: Change to store-missing-icon
+            icon_pixbuf = GdkPixbuf.Pixbuf.new_from_file("/usr/share/icons/Inspire/256/apps/feren-store.png")
+        icon_pixbuf = icon_pixbuf.scale_simple(desired_width, desired_height, GdkPixbuf.InterpType.BILINEAR)
+        self.app_iconimg.set_from_pixbuf(icon_pixbuf)
+        self.app_iconimg_stack.set_visible_child(self.app_iconimg)
+        self.app_iconimg_loading.stop()
+    
+    def set_app_details(self, apprname, appshortdesc):
+        #Set the application real name (apprname) and short description (appshortdesc) on the package header
+        self.app_title.set_label(apprname)
+        self.app_desc.set_label(appshortdesc)
+    
+    def set_source(self, packagesource):
+        #Set the application source to the one selected in the source dropdown
+        pass
+    
+    def get_sources(self, jsondata, package):
+        #Using the JSON Data from sources/packages.json, populate the sources dropdown according to what's available
+        sourcenames, orderofsources = [classnetwork.JSONReader.availablesources[package]["apt"], classnetwork.JSONReader.availablesources[package]["flatpak"], classnetwork.JSONReader.availablesources[package]["snap"]], classnetwork.JSONReader.availablesources[package]["order-of-importance"]
+        
+        
+        iface_list_store = Gtk.ListStore(GObject.TYPE_STRING)
+        amount_of_sources = 0
+        
+        for sourcename in orderofsources:
+            if sourcename == "apt":
+                #apt source
+                friendlysourcename = ApplicationSourceTranslator().TranslateToHumanReadable(sourcenames[0])
+                if friendlysourcename:
+                    iface_list_store.append([friendlysourcename])
+                    amount_of_sources += 1
+            elif sourcename == "flatpak":
+                #flatpak source
+                friendlysourcename = ApplicationSourceTranslator().TranslateToHumanReadable(sourcenames[1])
+                if friendlysourcename:
+                    iface_list_store.append([friendlysourcename])
+                    amount_of_sources += 1
+            elif sourcename == "snap":
+                #snap source
+                friendlysourcename = ApplicationSourceTranslator().TranslateToHumanReadable(sourcenames[2])
+                if friendlysourcename:
+                    iface_list_store.append([friendlysourcename])
+                    amount_of_sources += 1
+        
+        self.app_source_dropdown.set_model(iface_list_store)
+        self.app_source_dropdown.set_active(0)
+        if amount_of_sources <= 1:
+            self.app_source_dropdown.set_visible(False)
+            self.sources_visible = False
+        else:
+            self.app_source_dropdown.set_visible(True)
+            self.sources_visible = True
+            
+    def change_button_state(self, newstate, disableremove):
+        thread = Thread(target=self._change_button_state,
+                        args=(newstate, disableremove))
+        thread.daemon = True
+        thread.start()
+        
+    def _change_button_state(self, newstate, disableremove):
+        GLib.idle_add(self.__change_button_state, newstate, disableremove)
+    
+    def __change_button_state(self, newstate, disableremove):
+        #Change button state between 4 states:
+        #uninstalled: Install is visible
+        #sourcemissing: Install... is visible
+        #installed: Remove is visible
+        #updatable: Update and Remove are visible
+        
+        self.app_mgmt_installbtn.set_sensitive(False)
+        self.app_mgmt_installunavailbtn.set_sensitive(False)
+        self.app_mgmt_removebtn.set_sensitive(False)
+        self.app_mgmt_updatebtn.set_sensitive(False)
+        if self.sources_visible:
+            self.app_source_dropdown.set_visible(True)
+        
+        if newstate == "loading":
+            self.app_mgmt_progress_box.set_visible(False)
+            self.app_mgmt_button.set_visible(True)
+            self.app_mgmt_preparingbtns.start()
+            self.app_mgmt_updatebtn.set_visible(False)
+            self.app_mgmt_button.set_visible_child(self.app_mgmt_preparingbtns)
+        elif newstate == "queued":
+            self.app_mgmt_progress_box.set_visible(False)
+            self.app_mgmt_button.set_visible(True)
+            self.app_mgmt_preparingbtns.start()
+            self.app_mgmt_updatebtn.set_visible(False)
+            self.app_mgmt_button.set_visible_child(self.app_mgmt_pending_box)
+        elif newstate == "busy":
+            #TODO: Add cancel button for non-running tasks once the tasks system is implemented
+            self.app_source_dropdown.set_visible(False)
+            self.app_mgmt_progress_box.set_visible(True)
+            self.app_mgmt_button.set_visible(False)
+        elif newstate == "uninstalled":
+            self.app_mgmt_progress_box.set_visible(False)
+            self.app_mgmt_button.set_visible(True)
+            self.app_mgmt_installbtn.set_sensitive(True)
+            self.app_mgmt_updatebtn.set_visible(False)
+            self.app_mgmt_button.set_visible_child(self.app_mgmt_installbtn)
+            self.app_mgmt_preparingbtns.stop()
+        elif newstate == "sourcemissing":
+            self.app_mgmt_progress_box.set_visible(False)
+            self.app_mgmt_button.set_visible(True)
+            self.app_mgmt_installunavailbtn.set_sensitive(True)
+            self.app_mgmt_updatebtn.set_visible(False)
+            self.app_mgmt_button.set_visible_child(self.app_mgmt_installunavailbtn)
+            self.app_mgmt_preparingbtns.stop()
+        elif newstate == "installed":
+            self.app_mgmt_progress_box.set_visible(False)
+            self.app_mgmt_button.set_visible(True)
+            if disableremove == False:
+                self.app_mgmt_removebtn.set_sensitive(True)
+            self.app_mgmt_updatebtn.set_visible(False)
+            self.app_mgmt_button.set_visible_child(self.app_mgmt_removebtn)
+            self.app_mgmt_preparingbtns.stop()
+        elif newstate == "updatable":
+            self.app_mgmt_progress_box.set_visible(False)
+            self.app_mgmt_button.set_visible(True)
+            if disableremove == False:
+                self.app_mgmt_removebtn.set_sensitive(True)
+            self.app_mgmt_updatebtn.set_sensitive(True)
+            self.app_mgmt_updatebtn.set_visible(True)
+            self.app_mgmt_button.set_visible_child(self.app_mgmt_removebtn)
+            self.app_mgmt_preparingbtns.stop()
+    
+    def btns_get_package_status(self, packagetype, package):
+        #Get the state of the package for changing the buttons presented to the user accordingly - is it installed? does it need an update?
+        #packagetype is whether it's native, snap, ice or flatpak
+        self.change_button_state("loading", False)
+        if packagetype == "apt":
+            if ("apt:inst:"+package in classnetwork.TasksMgmt.currenttasks or "apt:upgr:"+package in classnetwork.TasksMgmt.currenttasks or "apt:rm:"+package in classnetwork.TasksMgmt.currenttasks) and not (classnetwork.TasksMgmt.currenttask.startswith("apt:") and classnetwork.TasksMgmt.currenttask.endswith(":"+package)):
+                self.change_button_state("queued", False)
+                return
+            elif classnetwork.TasksMgmt.currenttask.startswith("apt:") and classnetwork.TasksMgmt.currenttask.endswith(":"+package):
+                self.change_button_state("busy", False)
+                return
+            ifinstalled = APTChecks.checkinstalled(package)
+            if self.current_package == package:
+                if ifinstalled == 1:
+                    self.change_button_state("installed", package == "feren-store")
+                elif ifinstalled == 3:
+                    self.change_button_state("updatable", package == "feren-store")
+                elif ifinstalled == 404:
+                    classnetwork.StoreWindow.pages.set_visible_child(classnetwork.StoreWindow.nfpage)
+                    self.hide()
+                else:
+                    #TODO: Check for package source if necessary
+                    self.change_button_state("uninstalled", False)
+                
+    def on_installer_finished(self, package):
+        if self.current_package == package:
+            thread = Thread(target=self._on_installer_finished,
+                            args=(package,))
+            thread.daemon = True
+            thread.start()
+    
+    def _on_installer_finished(self, package):
+        #Tried threads - just crashes
+        GLib.idle_add(self.__on_installer_finished, package)
+            
+    def __on_installer_finished(self, package):
+        #TODO: Make this work depending on the package type
+        self.btns_get_package_status("apt", package)
+        self.app_mgmt_progress.set_fraction(0.0)
+    
+    def install_with_source_pressed(self, button):
+        #When you press 'Install...'
+        pass
+    
+    def install_pressed(self, button):
+        #When you press 'Install'
+        self.change_button_state("loading", False)
+        self.APTMgmt.install_package(self.current_package)
+    
+    def update_pressed(self, button):
+        #When you press 'Update'
+        self.change_button_state("loading", False)
+        self.APTMgmt.upgrade_package(self.current_package)
+    
+    def remove_pressed(self, button):
+        #When you press 'Remove'
+        self.change_button_state("loading", False)
+        self.APTMgmt.remove_package(self.current_package)
+
+    def cancel_from_queue_pressed(self, button):
+        #TODO: Make this work irregardless of package manager
+        if not (classnetwork.TasksMgmt.currenttask.startswith("apt:") and classnetwork.TasksMgmt.currenttask.endswith(":"+self.current_package)):
+            for taskitem in classnetwork.TasksMgmt.currenttasks[:]:
+                if taskitem.startswith("apt:") and taskitem.endswith(":"+self.current_package):
+                    classnetwork.TasksMgmt.currenttasks.remove(taskitem)
+                    classnetwork.TasksMgmt.gui_refresh_tasks()
+                    self.btns_get_package_status("apt", self.current_package)
+
+
+
+####AppView (the website)
 class AppView(WebKit2.WebView):
 
     def __init__(self):
         WebKit2.WebView.__init__(self)
+        classnetwork.AppView = self
         
         # Set WebKit background to the same as GTK
         #Update: Nevermind it goes black
@@ -197,35 +784,35 @@ class AppView(WebKit2.WebView):
 
     def _generate_apps_list(self, category):
         #TODO: Make it category-specific
-        for package in jsonreader.aptdata:
+        for package in classnetwork.JSONReader.aptdata:
             app.run_javascript('mkbutton("'+package+'")')
             
     def packagepagestuff(self):
         packagetoview = app.current_page.split('packagepage.html?package=')[1]
         
         if packagetoview != self.current_package:
-            app_title, app_desc, app_iconurl = jsonreader.getPackageInfo(packagetoview)
-            self.box_application_header.set_app_details(app_title, app_desc)
+            app_title, app_desc, app_iconurl = classnetwork.JSONReader.getPackageInfo(packagetoview)
+            classnetwork.AppDetailsHeader.set_app_details(app_title, app_desc)
             
-            templocation=globalvars.storagetemplocation
+            templocation=classnetwork.GlobalVariables.storagetemplocation
             
-            appiconthread = Thread(target=self.box_application_header.set_icon,
+            appiconthread = Thread(target=classnetwork.AppDetailsHeader.set_icon,
                                 args=(app_iconurl, packagetoview))
             appiconthread.start()
             
             #Update the sources combobox
-            self.box_application_header.get_sources(jsonreader.availablesources, packagetoview)
+            classnetwork.AppDetailsHeader.get_sources(classnetwork.JSONReader.availablesources, packagetoview)
             
             self.current_package = packagetoview
-            self.box_application_header.set_current_package(packagetoview)
+            classnetwork.AppDetailsHeader.set_current_package(packagetoview)
             
         #TODO: Replace this with code that detects source type and cts accordingly, instead of just APT
-        btnsthread = Thread(target=self.box_application_header.btns_get_package_status,
+        btnsthread = Thread(target=classnetwork.AppDetailsHeader.btns_get_package_status,
                             args=("apt", packagetoview))
         btnsthread.start()
             
         #Update in-page items
-        app_description, app_author, app_bugreporturl, app_website, app_tos, app_category, app_image1, app_image2, app_image3 = jsonreader.getPackageSiteInfo(packagetoview)
+        app_description, app_author, app_bugreporturl, app_website, app_tos, app_category, app_image1, app_image2, app_image3 = classnetwork.JSONReader.getPackageSiteInfo(packagetoview)
         app.update_page('#description', 'html', app_description)
         app.update_page('#author', 'html', app_author)
         app.update_page('#bugreporturl', 'html', app_bugreporturl)
@@ -255,36 +842,36 @@ class AppView(WebKit2.WebView):
             #app.update_page('.offline', 'show')
                 
         #Toggle block buttons first
-        self.gohome_btn.handler_block(self.gohome_handle_id)
-        self.goapps_btn.handler_block(self.goapps_handle_id)
-        self.gothemes_btn.handler_block(self.gothemes_handle_id)
-        self.gowebsites_btn.handler_block(self.gowebsites_handle_id)
-        self.status_btn.handler_block(self.status_handle_id)
+        classnetwork.StoreWindow.gohome_btn.handler_block(classnetwork.StoreWindow.gohome_handle_id)
+        classnetwork.StoreWindow.goapps_btn.handler_block(classnetwork.StoreWindow.goapps_handle_id)
+        classnetwork.StoreWindow.gothemes_btn.handler_block(classnetwork.StoreWindow.gothemes_handle_id)
+        classnetwork.StoreWindow.gowebsites_btn.handler_block(classnetwork.StoreWindow.gowebsites_handle_id)
+        classnetwork.StoreWindow.status_btn.handler_block(classnetwork.StoreWindow.status_handle_id)
         #Do their toggles and then unblock
-        self.gohome_btn.set_active(False)
-        self.goapps_btn.set_active(False)
-        self.gothemes_btn.set_active(False)
-        self.gowebsites_btn.set_active(False)
-        self.status_btn.set_active(False)
-        self.gohome_btn.handler_unblock(self.gohome_handle_id)
-        self.goapps_btn.handler_unblock(self.goapps_handle_id)
-        self.gothemes_btn.handler_unblock(self.gothemes_handle_id)
-        self.gowebsites_btn.handler_unblock(self.gowebsites_handle_id)
-        self.status_btn.handler_unblock(self.status_handle_id)
+        classnetwork.StoreWindow.gohome_btn.set_active(False)
+        classnetwork.StoreWindow.goapps_btn.set_active(False)
+        classnetwork.StoreWindow.gothemes_btn.set_active(False)
+        classnetwork.StoreWindow.gowebsites_btn.set_active(False)
+        classnetwork.StoreWindow.status_btn.set_active(False)
+        classnetwork.StoreWindow.gohome_btn.handler_unblock(classnetwork.StoreWindow.gohome_handle_id)
+        classnetwork.StoreWindow.goapps_btn.handler_unblock(classnetwork.StoreWindow.goapps_handle_id)
+        classnetwork.StoreWindow.gothemes_btn.handler_unblock(classnetwork.StoreWindow.gothemes_handle_id)
+        classnetwork.StoreWindow.gowebsites_btn.handler_unblock(classnetwork.StoreWindow.gowebsites_handle_id)
+        classnetwork.StoreWindow.status_btn.handler_unblock(classnetwork.StoreWindow.status_handle_id)
 
         ### Index Page ###
         if current_page == 'statuspage.html':
-            self.status_btn.handler_block(self.status_handle_id)
-            self.status_btn.set_active(True)
-            self.status_btn.handler_unblock(self.status_handle_id)
+            classnetwork.StoreWindow.status_btn.handler_block(classnetwork.StoreWindow.status_handle_id)
+            classnetwork.StoreWindow.status_btn.set_active(True)
+            classnetwork.StoreWindow.status_btn.handler_unblock(classnetwork.StoreWindow.status_handle_id)
             
-            self.gohome_btn.set_visible(True)
-            self.goapps_btn.set_visible(True)
-            self.gothemes_btn.set_visible(True)
-            self.gowebsites_btn.set_visible(True)
-            self.box_application_header.set_visible(False)
+            classnetwork.StoreWindow.gohome_btn.set_visible(True)
+            classnetwork.StoreWindow.goapps_btn.set_visible(True)
+            classnetwork.StoreWindow.gothemes_btn.set_visible(True)
+            classnetwork.StoreWindow.gowebsites_btn.set_visible(True)
+            classnetwork.AppDetailsHeader.set_visible(False)
             
-            taskslistthread = Thread(target=self.box_application_header.APTMgmt.tasksmgmttool.gui_refresh_tasks,
+            taskslistthread = Thread(target=classnetwork.TasksMgmt.gui_refresh_tasks,
                                 args=())
             taskslistthread.start()
             
@@ -292,56 +879,56 @@ class AppView(WebKit2.WebView):
         else:
             self.pages.set_visible_child(app.webkit)
         if current_page == 'home.html' or current_page.startswith('recommendations.html'):
-            self.gohome_btn.handler_block(self.gohome_handle_id)
-            self.gohome_btn.set_active(True)
-            self.gohome_btn.handler_unblock(self.gohome_handle_id)
+            classnetwork.StoreWindow.gohome_btn.handler_block(classnetwork.StoreWindow.gohome_handle_id)
+            classnetwork.StoreWindow.gohome_btn.set_active(True)
+            classnetwork.StoreWindow.gohome_btn.handler_unblock(classnetwork.StoreWindow.gohome_handle_id)
             
-            self.gohome_btn.set_visible(True)
-            self.goapps_btn.set_visible(True)
-            self.gothemes_btn.set_visible(True)
-            self.gowebsites_btn.set_visible(True)
-            self.box_application_header.set_visible(False)
+            classnetwork.StoreWindow.gohome_btn.set_visible(True)
+            classnetwork.StoreWindow.goapps_btn.set_visible(True)
+            classnetwork.StoreWindow.gothemes_btn.set_visible(True)
+            classnetwork.StoreWindow.gowebsites_btn.set_visible(True)
+            classnetwork.AppDetailsHeader.set_visible(False)
         elif current_page == 'applicationspage.html':
-            self.goapps_btn.handler_block(self.goapps_handle_id)
-            self.goapps_btn.set_active(True)
-            self.goapps_btn.handler_unblock(self.goapps_handle_id)
+            classnetwork.StoreWindow.goapps_btn.handler_block(classnetwork.StoreWindow.goapps_handle_id)
+            classnetwork.StoreWindow.goapps_btn.set_active(True)
+            classnetwork.StoreWindow.goapps_btn.handler_unblock(classnetwork.StoreWindow.goapps_handle_id)
             
-            self.gohome_btn.set_visible(True)
-            self.goapps_btn.set_visible(True)
-            self.gothemes_btn.set_visible(True)
-            self.gowebsites_btn.set_visible(True)
-            self.box_application_header.set_visible(False)
+            classnetwork.StoreWindow.gohome_btn.set_visible(True)
+            classnetwork.StoreWindow.goapps_btn.set_visible(True)
+            classnetwork.StoreWindow.gothemes_btn.set_visible(True)
+            classnetwork.StoreWindow.gowebsites_btn.set_visible(True)
+            classnetwork.AppDetailsHeader.set_visible(False)
             
             if self.add_buttons == True:
                 applistthread = Thread(target=self._generate_apps_list,
                                     args=("e",))
                 applistthread.start()
         elif current_page == 'themespage.html':
-            self.gothemes_btn.handler_block(self.gothemes_handle_id)
-            self.gothemes_btn.set_active(True)
-            self.gothemes_btn.handler_unblock(self.gothemes_handle_id)
+            classnetwork.StoreWindow.gothemes_btn.handler_block(classnetwork.StoreWindow.gothemes_handle_id)
+            classnetwork.StoreWindow.gothemes_btn.set_active(True)
+            classnetwork.StoreWindow.gothemes_btn.handler_unblock(classnetwork.StoreWindow.gothemes_handle_id)
             
-            self.gohome_btn.set_visible(True)
-            self.goapps_btn.set_visible(True)
-            self.gothemes_btn.set_visible(True)
-            self.gowebsites_btn.set_visible(True)
-            self.box_application_header.set_visible(False)
+            classnetwork.StoreWindow.gohome_btn.set_visible(True)
+            classnetwork.StoreWindow.goapps_btn.set_visible(True)
+            classnetwork.StoreWindow.gothemes_btn.set_visible(True)
+            classnetwork.StoreWindow.gowebsites_btn.set_visible(True)
+            classnetwork.AppDetailsHeader.set_visible(False)
         elif current_page == 'websitespage.html':
-            self.gowebsites_btn.handler_block(self.gowebsites_handle_id)
-            self.gowebsites_btn.set_active(True)
-            self.gowebsites_btn.handler_unblock(self.gowebsites_handle_id)
+            classnetwork.StoreWindow.gowebsites_btn.handler_block(classnetwork.StoreWindow.gowebsites_handle_id)
+            classnetwork.StoreWindow.gowebsites_btn.set_active(True)
+            classnetwork.StoreWindow.gowebsites_btn.handler_unblock(classnetwork.StoreWindow.gowebsites_handle_id)
             
-            self.gohome_btn.set_visible(True)
-            self.goapps_btn.set_visible(True)
-            self.gothemes_btn.set_visible(True)
-            self.gowebsites_btn.set_visible(True)
-            self.box_application_header.set_visible(False)
+            classnetwork.StoreWindow.gohome_btn.set_visible(True)
+            classnetwork.StoreWindow.goapps_btn.set_visible(True)
+            classnetwork.StoreWindow.gothemes_btn.set_visible(True)
+            classnetwork.StoreWindow.gowebsites_btn.set_visible(True)
+            classnetwork.AppDetailsHeader.set_visible(False)
         elif current_page.startswith('packagepage.html'):
-            self.gohome_btn.set_visible(False)
-            self.goapps_btn.set_visible(False)
-            self.gothemes_btn.set_visible(False)
-            self.gowebsites_btn.set_visible(False)
-            self.box_application_header.set_visible(True)
+            classnetwork.StoreWindow.gohome_btn.set_visible(False)
+            classnetwork.StoreWindow.goapps_btn.set_visible(False)
+            classnetwork.StoreWindow.gothemes_btn.set_visible(False)
+            classnetwork.StoreWindow.gowebsites_btn.set_visible(False)
+            classnetwork.AppDetailsHeader.set_visible(True)
             
             remainingstuffthread = Thread(target=self.packagepagestuff,
                                 args=())
@@ -365,6 +952,7 @@ class AppView(WebKit2.WebView):
         return True
 
 
+####Notifications Thing
 class Notifier(object):
     INFO = 0
     ERROR = 1
@@ -476,7 +1064,37 @@ class Notifier(object):
             #dbg.stdout('Specs', 'Failed to gather data: Storage', 0, 1)
 
 
-class WelcomeApp(object):
+####Class Network - use this at any time to connect any bit of code to any class (that has an init) in this code
+class ClassNetwork():
+    def __init__(self):
+        self.JSONReader = JSONReader()
+        self.GlobalVariables = GlobalVariables()
+        self.TasksMgmt = TasksMgmt()
+        self.SearchHeader = None
+        self.AppDetailsHeader = None
+        self.AppView = None
+        self.Notifier = None
+        self.DEBWindow = None
+        self.SettingsWindow = None
+        self.StoreWindow = None
+        self.APTMgmt = None
+        self.SnapMgmt = None
+        self.FlatpakMgmt = None
+        self.ICEMgmt = None
+
+
+####DEBs Checker Window
+#class DEBWindow(object):
+    #TODO: Add this
+
+
+####Settings Window
+#class SettingsWindow(object):
+    #TODO: Add this
+
+
+####Store Window
+class StoreWindow(object):
     
     def check_arguments(self):
         self.settings_only = False
@@ -547,16 +1165,18 @@ class WelcomeApp(object):
 
         self._start_page = 'home.html'
         #TODO: Add redirect to package page if jump_to_package is True
+        
+        classnetwork.StoreWindow = self
 
         self._build_app()
 
     def _build_app(self):
         # build window
-        w = Gtk.Window()
-        w.set_position(Gtk.WindowPosition.CENTER)
-        w.set_title("Store")
-        w.set_default_size(810, 640)
-        #w.set_resizable(False)
+        self.w = Gtk.Window()
+        self.w.set_position(Gtk.WindowPosition.CENTER)
+        self.w.set_title("Store")
+        self.w.set_default_size(810, 640)
+        #self.w.set_resizable(False)
 
         #This allows Store to be natively recognised as an application associated with its .desktop file
         GLib.set_prgname('/usr/bin/feren-store-new')
@@ -679,29 +1299,41 @@ class WelcomeApp(object):
         taskslabel.get_style_context().add_class("14scale")
         taskslabel_box.pack_start(taskslabel, False, False, 0)
         
-        tasksitems = Gtk.VBox(spacing=4)
+        self.tasksitems = Gtk.VBox(spacing=4)
         
         updateslabel_box = Gtk.Box()
         updateslabel = Gtk.Label(label="Updates are available for:")
         updateslabel.get_style_context().add_class("14scale")
         updateslabel_box.pack_start(updateslabel, False, False, 0)
         
-        updatesitems = Gtk.VBox(spacing=4)
+        self.updatesitems = Gtk.VBox(spacing=4)
         
         installedlabel_box = Gtk.Box()
         installedlabel = Gtk.Label(label="Currently installed:")
         installedlabel.get_style_context().add_class("14scale")
         installedlabel_box.pack_start(installedlabel, False, False, 0)
         
-        installeditems = Gtk.VBox(spacing=4)
+        self.installeditems = Gtk.VBox(spacing=4)
         
                 
         taskspage.pack_start(taskslabel_box, False, True, 0)
-        taskspage.pack_start(tasksitems, False, True, 0)
+        taskspage.pack_start(self.tasksitems, False, True, 0)
         taskspage.pack_start(updateslabel_box, False, True, 0)
-        taskspage.pack_start(updatesitems, False, True, 0)
+        taskspage.pack_start(self.updatesitems, False, True, 0)
         taskspage.pack_start(installedlabel_box, False, True, 0)
-        taskspage.pack_start(installeditems, False, True, 0)
+        taskspage.pack_start(self.installeditems, False, True, 0)
+        
+        
+        # build 404 page
+        self.nfpage = Gtk.VBox(spacing=8)
+        
+        nfpage_box = Gtk.VBox()
+        nfpagelabel = Gtk.Label(label="Not Available")
+        nfpagelabel2 = Gtk.Label(label="This item is currently not available or does not exist.")
+        nfpagelabel.get_style_context().add_class("14scale")
+        nfpage_box.pack_start(nfpagelabel, False, False, 5)
+        nfpage_box.pack_end(nfpagelabel2, False, False, 5)
+        self.nfpage.set_center_widget(nfpage_box)
         
         
         # build webkit container
@@ -709,21 +1341,9 @@ class WelcomeApp(object):
         mv.get_style_context().add_class(Gtk.STYLE_CLASS_VIEW)
         mv.set_zoom_level(1.0)
 
-        mv.status_btn = self.status_btn
         mv.back_btn = back_btn
-        mv.gohome_btn = self.gohome_btn
-        mv.goapps_btn = self.goapps_btn
-        mv.gothemes_btn = self.gothemes_btn
-        mv.gowebsites_btn = self.gowebsites_btn
         
         #handle_id is needed to block events as otherwise the button active state changes cause button press events to occur (for whatever stupid reason) which ultimately leads to a Stack Overflow as the event code retriggers the event by triggering the button press yet again looping the cycle indefinitely
-        mv.status_handle_id = self.status_handle_id
-        mv.gohome_handle_id = self.gohome_handle_id
-        mv.goapps_handle_id = self.goapps_handle_id
-        mv.gothemes_handle_id = self.gothemes_handle_id
-        mv.gowebsites_handle_id = self.gowebsites_handle_id
-        
-        #self.status_btn.connect("clicked", self._show_status)
 
         # load our index file
         #file = os.path.abspath(os.path.join(translations.get_pages_path(), self._start_page))
@@ -740,47 +1360,43 @@ class WelcomeApp(object):
         sw2.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
         sw2.get_style_context().add_class(Gtk.STYLE_CLASS_VIEW)
         
-        pages = Gtk.Stack()
-        pages.add_named(mv, "webkit")
-        pages.add_named(sw2, "tasks")
+        self.pages = Gtk.Stack()
+        self.pages.get_style_context().add_class(Gtk.STYLE_CLASS_VIEW)
+        self.pages.add_named(mv, "webkit")
+        self.pages.add_named(sw2, "tasks")
+        self.pages.add_named(self.nfpage, "404")
         taskspage.set_margin_bottom(8)
         taskspage.set_margin_top(8)
         taskspage.set_margin_left(10)
         taskspage.set_margin_right(10)
         
-        sw.add(pages)
+        sw.add(self.pages)
         sw2.add(taskspage)
 
         # build a an autoexpanding box and add our scrolled window
         b = Gtk.Box(homogeneous=False, spacing=0)
         b.pack_start(sw, expand=True, fill=True, padding=0)
         
-        box_application_header = applicationgui.PackageHeader(w, self.status_btn)
-        box_application_header.tvtasksitems = tasksitems
-        box_application_header.tvupdatesitems = updatesitems
-        box_application_header.tvinstalleditems = installeditems
+        box_application_header = AppDetailsHeader()
 
         # add the box to the parent window and show
         mainwindow.pack_start(maintoolbar, False, True, 0)
         mainwindow.pack_start(box_application_header, False, True, 0)
         mainwindow.pack_end(b, True, True, 0)
-        w.add(mainwindow)
+        self.w.add(mainwindow)
         
-        w.connect('delete-event', self.close)
-        w.show_all()
+        self.w.connect('delete-event', self.close)
+        self.w.show_all()
 
-        self._window = w
+        self._window = self.w
         self.webkit = mv
         
         #Add more variables to mv
-        mv.box_application_header = box_application_header
         mv.sw2 = sw2
-        mv.pages = pages
-        
-        box_application_header.webkit = mv
+        mv.pages = self.pages
         
         box_application_header.set_visible(False)
-        box_application_header.parent_window = w
+        box_application_header.parent_window = self.w
 
     def run(self):
         signal.signal(signal.SIGINT, signal.SIG_DFL)
@@ -865,10 +1481,11 @@ if __name__ == "__main__":
     except:
         print("Failed to initialize notifier")
         
-    global globalvars
-    global jsonreader
-    globalvars = storeutils.GlobalVariables()
-    jsonreader = storeutils.JSONReader()
-
-    app = WelcomeApp()
+    
+    ##Define classnetwork and make it usable across all the code
+    global classnetwork 
+    classnetwork = ClassNetwork()
+    
+    
+    app = StoreWindow()
     app.run()

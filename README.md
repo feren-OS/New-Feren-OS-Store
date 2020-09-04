@@ -23,6 +23,9 @@ Ideas I want to implement into this application:
 - [ ] Add FYI dialog when opening DEBs for packages already in the Store
 - [ ] Support for KDE Store
 - [x] Separate Games and Themes sections
+- [ ] Updates section in Tasks/Installed
+- [ ] Notifications for successful installs, updates now being available, installing system-wide automatic updates, etc.
+- [ ] Tasks management for queuing multiple install/remove/update/etc tasks at once
 - [ ] Pre-defined application lists on the Home page for different topics
 - [ ] Settings: Allow toggling of automatic updates
 - [ ] Settings: Allow toggling and management of application sources
@@ -40,4 +43,4 @@ Ideas I want to implement into this application:
 
 ---
 
-Current Status: Can only manage one APT package at a time and otherwise do nothing else.
+Current Status: Can install and remove APT packages in a queued task order

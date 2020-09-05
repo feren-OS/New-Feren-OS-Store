@@ -13,6 +13,7 @@
 # details.
 
 import os
+import subprocess
 import apt
 import aptdaemon.client
 from aptdaemon.gtk3widgets import AptErrorDialog, AptProgressDialog, AptConfirmDialog
@@ -41,7 +42,8 @@ class APTErrorDialog():
     transaction.
     """
 
-    def __init__(self, error):
+    def __init__(self, error, classnetwork):
+        self.classnetwork = classnetwork
         text = aptdaemon.enums.get_error_string_from_enum(error.code)
         desc = aptdaemon.enums.get_error_description_from_enum(error.code)
         
@@ -52,7 +54,6 @@ class APTErrorDialog():
         self.w.set_default_size(500, 340)
         self.w.set_destroy_with_parent(True)
         self.w.set_resizable(False)
-        storegui.set_sensitive(False)
         
         css_provider = Gtk.CssProvider()
         css_provider.load_from_path('/usr/share/feren-store-new/css/application.css')
@@ -79,7 +80,7 @@ class APTErrorDialog():
         strlabelbox.pack_start(first_string_box, False, False, 0)
         strlabelbox.pack_start(second_string_box, False, False, 0)
         mainwindow.pack_start(strlabelbox, False, False, 0)
-        mainwindow.pack_start(third_string, False, False, 0)
+        mainwindow.pack_start(third_string_box, False, False, 0)
         
         # build scrolled window widget and add our appview container
         sw = Gtk.ScrolledWindow()
@@ -89,7 +90,7 @@ class APTErrorDialog():
         b = Gtk.Box(homogeneous=False, spacing=4)
         b.pack_start(sw, expand=True, fill=True, padding=0)
         
-        errortext = Gtk.Label(label=desc)
+        self.errortext = Gtk.Label(label=desc)
         sw.add(self.errortext)
         
         
@@ -526,6 +527,18 @@ class APTChecks():
         else:
             return(2)
 
+    def checkneedsrepo(package):
+        s = subprocess.run(["/usr/lib/feren-store-new/bash-tools/get-apt-dependencies", package], stdout=subprocess.PIPE).stdout.decode('utf-8')
+        dependencies = s.split()
+        stuffneeded = []
+        if "snapd" in dependencies and not os.path.isfile("/usr/bin/snap"):
+            stuffneeded.append("snap")
+        if "flatpak" in dependencies and not os.path.isfile("/usr/bin/flatpak"):
+            stuffneeded.append("flatpak")
+        #TODO: Add checking for known App Sources
+
+        return stuffneeded
+
 
 class APTMgmt():
     def __init__(self, classnetwork):
@@ -656,7 +669,7 @@ class APTMgmt():
             error = aptdaemon.errors.TransactionFailed(aptdaemon.enums.ERROR_UNKNOWN,
                                                        str(error))
 
-        APTErrorDialog(error)
+        APTErrorDialog(error, self.classnetwork)
 
     def run_transaction(self):
         self.changesinaction = True

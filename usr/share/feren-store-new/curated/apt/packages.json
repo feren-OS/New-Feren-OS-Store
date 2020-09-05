@@ -1604,6 +1604,21 @@
     "image3": "",
     "tos": "https://www.google.com/chrome/terms/"
   },
+  "chromium-browser": {
+    "realname": "Chromium",
+    "iconurl": "https://upload.wikimedia.org/wikipedia/commons/2/26/Chromium_logo.png",
+    "shortdescription": "TODO",
+    "description": "TODO",
+    "author": "Google",
+    "bugreporturl": "",
+    "website": "",
+    "category": "browsers",
+    "aptsource": "",
+    "image1": "https://www.gstatic.com/chrome/appstream/chrome-2.png",
+    "image2": "",
+    "image3": "",
+    "tos": ""
+  },
   "feren-store": {
     "realname": "Feren Store",
     "iconurl": "file:///usr/share/icons/Inspire/256/apps/feren-store.png",

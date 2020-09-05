@@ -164,7 +164,6 @@ class PackageTile(Gtk.Button):
                 #Set it as the icon in the Store
                 icon_pixbuf = GdkPixbuf.Pixbuf.new_from_file(iconuri.split('file://')[1])
         except Exception as exceptionstring:
-            print("Could not retrieve icon for", packagename, "-", exceptionstring)
             #TODO: Change to store-missing-icon
             icon_pixbuf = GdkPixbuf.Pixbuf.new_from_file("/usr/share/icons/Inspire/256/apps/feren-store.png")
         icon_pixbuf = icon_pixbuf.scale_simple(desired_width, desired_height, GdkPixbuf.InterpType.BILINEAR)
@@ -255,9 +254,6 @@ class TasksMgmt(object):
         #Destoy the existing widgets
         for child in classnetwork.StoreWindow.tasksitems.get_children():
             classnetwork.StoreWindow.tasksitems.remove(child)
-            #for child2 in child:
-            #    child2.destroy()
-            #child.destroy()
         
         self.existingwidgets = []
         
@@ -722,8 +718,10 @@ class AppDetailsHeader(Gtk.Box):
                     classnetwork.StoreWindow.pages.set_visible_child(classnetwork.StoreWindow.nfpage)
                     self.hide()
                 else:
-                    #TODO: Check for package source if necessary
-                    self.change_button_state("uninstalled", False)
+                    if APTChecks.checkneedsrepo(package) != []:
+                        self.change_button_state("sourcemissing", package == "feren-store")
+                    else:
+                        self.change_button_state("uninstalled", False)
                 
     def on_installer_finished(self, package):
         if self.current_package == package:

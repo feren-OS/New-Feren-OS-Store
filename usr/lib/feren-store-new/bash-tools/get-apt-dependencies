@@ -8,11 +8,4 @@ for dependency in $dependencies; do
     dependencies=$(echo "$dependencies")
 done
 
-secondlayerdeps="$dependencies"
-
-for dependency in $(echo $dependencies | sed "s/$secondlayerdeps //g"); do
-    dependencies="$dependencies $(echo "$(apt show $dependency | grep "^Depends:") $(apt show $dependency | grep "^Pre-Depends:")" | sed 's/Pre-Depends: //g' | sed 's/Depends: //g' | sed 's/,//g' | sed 's/ |//g' | sed 's/ (.*)//g')"
-    dependencies=$(echo "$dependencies")
-done
-
 echo "$dependencies" | xargs -n1 | sort -u | xargs | sed 's/  / /g' | sed 's/   / /g'

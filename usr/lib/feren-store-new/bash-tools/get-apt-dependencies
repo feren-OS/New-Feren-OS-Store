@@ -1,11 +1,4 @@
 #!/bin/bash
 
-maindependantpackages=$(echo "$(apt show $1 | grep "^Depends:") $(apt show $1 | grep "^Pre-Depends:")" | sed 's/Pre-Depends: //g' | sed 's/Depends: //g' | sed 's/,//g' | sed 's/ |//g' | sed 's/ (.*)//g')
-dependencies="$maindependantpackages"
-
-for dependency in $dependencies; do
-    dependencies="$dependencies $(echo "$(apt show $dependency | grep "^Depends:") $(apt show $dependency | grep "^Pre-Depends:")" | sed 's/Pre-Depends: //g' | sed 's/Depends: //g' | sed 's/,//g' | sed 's/ |//g' | sed 's/ (.*)//g')"
-    dependencies=$(echo "$dependencies")
-done
-
-echo "$dependencies" | xargs -n1 | sort -u | xargs | sed 's/  / /g' | sed 's/   / /g'
+echo "$(apt rdepends $1)
+$(apt depends $1)" | sed 's/Suggests: .*//g' | sed 's/Enhances: .*//g' | sed 's/Recommends: .*//g' | sed 's/Conflicts: .*//g' | sed 's/  / /g' | sed 's/   / /g' | sed 's/Pre-Depends: //g' | sed 's/Post-Depends: //g' | sed 's/PreDepends: //g' | sed 's/PostDepends: //g' | sed 's/Depends: //g' | sed 's/,//g' | sed 's/ |//g' | sed 's/ (.*)//g' | sed 's/Reverse Depends://g' | sed 's/<//g' | sed 's/>//g' | xargs -n1 | sort -u | xargs

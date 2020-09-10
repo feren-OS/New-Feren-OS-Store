@@ -1605,10 +1605,10 @@ if __name__ == "__main__":
         os.makedirs(localdir)
 
     # Init notification
-    try:
-        NotifyInit("feren-store-new")
-    except:
-        print("Failed to initialize notifier")
+    #try:
+    #    NotifyInit("feren-store-new")
+    #except:
+    #    print("Failed to initialize notifier")
         
     
     ##Define classnetwork and make it usable across all the code

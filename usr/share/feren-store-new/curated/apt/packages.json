@@ -241,7 +241,7 @@
   },
   "ubuntu-wallpapers-artful": {
     "realname": "Ubuntu 17.10 Backgrounds",
-    "iconurl": "file:///usr/share/icons/Adwaita/256x256/apps/preferences-desktop-wallpaper.png",
+    "iconurl": "file:///usr/share/icons/gnome/256x256/apps/preferences-desktop-wallpaper.png",
     "shortdescription": "Backgrounds from Ubuntu 17.10",
     "description": "",
     "author": "Canonical",
@@ -256,7 +256,7 @@
   },
   "ubuntu-wallpapers-bionic": {
     "realname": "Ubuntu 18.04 Backgrounds",
-    "iconurl": "file:///usr/share/icons/Adwaita/256x256/apps/preferences-desktop-wallpaper.png",
+    "iconurl": "file:///usr/share/icons/gnome/256x256/apps/preferences-desktop-wallpaper.png",
     "shortdescription": "Backgrounds from Ubuntu 18.04",
     "description": "",
     "author": "Canonical",
@@ -271,7 +271,7 @@
   },
   "ubuntu-wallpapers-cosmic": {
     "realname": "Ubuntu 18.10 Backgrounds",
-    "iconurl": "file:///usr/share/icons/Adwaita/256x256/apps/preferences-desktop-wallpaper.png",
+    "iconurl": "file:///usr/share/icons/gnome/256x256/apps/preferences-desktop-wallpaper.png",
     "shortdescription": "Backgrounds from Ubuntu 18.10",
     "description": "",
     "author": "Canonical",
@@ -286,7 +286,7 @@
   },
   "ubuntu-wallpapers-disco": {
     "realname": "Ubuntu 19.04 Backgrounds",
-    "iconurl": "file:///usr/share/icons/Adwaita/256x256/apps/preferences-desktop-wallpaper.png",
+    "iconurl": "file:///usr/share/icons/gnome/256x256/apps/preferences-desktop-wallpaper.png",
     "shortdescription": "Backgrounds from Ubuntu 19.04",
     "description": "",
     "author": "Canonical",
@@ -301,7 +301,7 @@
   },
   "ubuntu-wallpapers-eoan": {
     "realname": "Ubuntu 19.10 Backgrounds",
-    "iconurl": "file:///usr/share/icons/Adwaita/256x256/apps/preferences-desktop-wallpaper.png",
+    "iconurl": "file:///usr/share/icons/gnome/256x256/apps/preferences-desktop-wallpaper.png",
     "shortdescription": "Backgrounds from Ubuntu 19.10",
     "description": "",
     "author": "Canonical",
@@ -316,7 +316,7 @@
   },
   "ubuntu-wallpapers-focal": {
     "realname": "Ubuntu 20.04 Backgrounds",
-    "iconurl": "file:///usr/share/icons/Adwaita/256x256/apps/preferences-desktop-wallpaper.png",
+    "iconurl": "file:///usr/share/icons/gnome/256x256/apps/preferences-desktop-wallpaper.png",
     "shortdescription": "Backgrounds from Ubuntu 20.04",
     "description": "",
     "author": "Canonical",
@@ -331,7 +331,7 @@
   },
   "ubuntu-wallpapers-karmic": {
     "realname": "Ubuntu 9.10 Backgrounds",
-    "iconurl": "file:///usr/share/icons/Adwaita/256x256/apps/preferences-desktop-wallpaper.png",
+    "iconurl": "file:///usr/share/icons/gnome/256x256/apps/preferences-desktop-wallpaper.png",
     "shortdescription": "Backgrounds from Ubuntu 9.10",
     "description": "",
     "author": "Canonical",
@@ -346,7 +346,7 @@
   },
   "ubuntu-wallpapers-lucid": {
     "realname": "Ubuntu 10.04 Backgrounds",
-    "iconurl": "file:///usr/share/icons/Adwaita/256x256/apps/preferences-desktop-wallpaper.png",
+    "iconurl": "file:///usr/share/icons/gnome/256x256/apps/preferences-desktop-wallpaper.png",
     "shortdescription": "Backgrounds from Ubuntu 10.04",
     "description": "",
     "author": "Canonical",
@@ -361,7 +361,7 @@
   },
   "ubuntu-wallpapers-maverick": {
     "realname": "Ubuntu 10.10 Backgrounds",
-    "iconurl": "file:///usr/share/icons/Adwaita/256x256/apps/preferences-desktop-wallpaper.png",
+    "iconurl": "file:///usr/share/icons/gnome/256x256/apps/preferences-desktop-wallpaper.png",
     "shortdescription": "Backgrounds from Ubuntu 10.10",
     "description": "",
     "author": "Canonical",
@@ -376,7 +376,7 @@
   },
   "ubuntu-wallpapers-natty": {
     "realname": "Ubuntu 11.04 Backgrounds",
-    "iconurl": "file:///usr/share/icons/Adwaita/256x256/apps/preferences-desktop-wallpaper.png",
+    "iconurl": "file:///usr/share/icons/gnome/256x256/apps/preferences-desktop-wallpaper.png",
     "shortdescription": "Backgrounds from Ubuntu 11.04",
     "description": "",
     "author": "Canonical",
@@ -391,7 +391,7 @@
   },
   "ubuntu-wallpapers-oneiric": {
     "realname": "Ubuntu 11.10 Backgrounds",
-    "iconurl": "file:///usr/share/icons/Adwaita/256x256/apps/preferences-desktop-wallpaper.png",
+    "iconurl": "file:///usr/share/icons/gnome/256x256/apps/preferences-desktop-wallpaper.png",
     "shortdescription": "Backgrounds from Ubuntu 11.10",
     "description": "",
     "author": "Canonical",
@@ -406,7 +406,7 @@
   },
   "ubuntu-wallpapers-precise": {
     "realname": "Ubuntu 12.04 Backgrounds",
-    "iconurl": "file:///usr/share/icons/Adwaita/256x256/apps/preferences-desktop-wallpaper.png",
+    "iconurl": "file:///usr/share/icons/gnome/256x256/apps/preferences-desktop-wallpaper.png",
     "shortdescription": "Backgrounds from Ubuntu 12.04",
     "description": "",
     "author": "Canonical",
@@ -421,7 +421,7 @@
   },
   "ubuntu-wallpapers-quantal": {
     "realname": "Ubuntu 12.10 Backgrounds",
-    "iconurl": "file:///usr/share/icons/Adwaita/256x256/apps/preferences-desktop-wallpaper.png",
+    "iconurl": "file:///usr/share/icons/gnome/256x256/apps/preferences-desktop-wallpaper.png",
     "shortdescription": "Backgrounds from Ubuntu 12.10",
     "description": "",
     "author": "Canonical",
@@ -436,7 +436,7 @@
   },
   "ubuntu-wallpapers-raring": {
     "realname": "Ubuntu 13.04 Backgrounds",
-    "iconurl": "file:///usr/share/icons/Adwaita/256x256/apps/preferences-desktop-wallpaper.png",
+    "iconurl": "file:///usr/share/icons/gnome/256x256/apps/preferences-desktop-wallpaper.png",
     "shortdescription": "Backgrounds from Ubuntu 13.04",
     "description": "",
     "author": "Canonical",
@@ -451,7 +451,7 @@
   },
   "ubuntu-wallpapers-saucy": {
     "realname": "Ubuntu 13.10 Backgrounds",
-    "iconurl": "file:///usr/share/icons/Adwaita/256x256/apps/preferences-desktop-wallpaper.png",
+    "iconurl": "file:///usr/share/icons/gnome/256x256/apps/preferences-desktop-wallpaper.png",
     "shortdescription": "Backgrounds from Ubuntu 13.10",
     "description": "",
     "author": "Canonical",
@@ -466,7 +466,7 @@
   },
   "ubuntu-wallpapers-trusty": {
     "realname": "Ubuntu 14.04 Backgrounds",
-    "iconurl": "file:///usr/share/icons/Adwaita/256x256/apps/preferences-desktop-wallpaper.png",
+    "iconurl": "file:///usr/share/icons/gnome/256x256/apps/preferences-desktop-wallpaper.png",
     "shortdescription": "Backgrounds from Ubuntu 14.04",
     "description": "",
     "author": "Canonical",
@@ -481,7 +481,7 @@
   },
   "ubuntu-wallpapers-utopic": {
     "realname": "Ubuntu 14.10 Backgrounds",
-    "iconurl": "file:///usr/share/icons/Adwaita/256x256/apps/preferences-desktop-wallpaper.png",
+    "iconurl": "file:///usr/share/icons/gnome/256x256/apps/preferences-desktop-wallpaper.png",
     "shortdescription": "Backgrounds from Ubuntu 14.10",
     "description": "",
     "author": "Canonical",
@@ -496,7 +496,7 @@
   },
   "ubuntu-wallpapers-vivid": {
     "realname": "Ubuntu 15.04 Backgrounds",
-    "iconurl": "file:///usr/share/icons/Adwaita/256x256/apps/preferences-desktop-wallpaper.png",
+    "iconurl": "file:///usr/share/icons/gnome/256x256/apps/preferences-desktop-wallpaper.png",
     "shortdescription": "Backgrounds from Ubuntu 15.04",
     "description": "",
     "author": "Canonical",
@@ -511,7 +511,7 @@
   },
   "ubuntu-wallpapers-wily": {
     "realname": "Ubuntu 15.10 Backgrounds",
-    "iconurl": "file:///usr/share/icons/Adwaita/256x256/apps/preferences-desktop-wallpaper.png",
+    "iconurl": "file:///usr/share/icons/gnome/256x256/apps/preferences-desktop-wallpaper.png",
     "shortdescription": "Backgrounds from Ubuntu 15.10",
     "description": "",
     "author": "Canonical",
@@ -526,7 +526,7 @@
   },
   "ubuntu-wallpapers-xenial": {
     "realname": "Ubuntu 16.04 Backgrounds",
-    "iconurl": "file:///usr/share/icons/Adwaita/256x256/apps/preferences-desktop-wallpaper.png",
+    "iconurl": "file:///usr/share/icons/gnome/256x256/apps/preferences-desktop-wallpaper.png",
     "shortdescription": "Backgrounds from Ubuntu 16.04",
     "description": "",
     "author": "Canonical",
@@ -541,7 +541,7 @@
   },
   "ubuntu-wallpapers-yakkety": {
     "realname": "Ubuntu 16.10 Backgrounds",
-    "iconurl": "file:///usr/share/icons/Adwaita/256x256/apps/preferences-desktop-wallpaper.png",
+    "iconurl": "file:///usr/share/icons/gnome/256x256/apps/preferences-desktop-wallpaper.png",
     "shortdescription": "Backgrounds from Ubuntu 16.10",
     "description": "",
     "author": "Canonical",
@@ -556,7 +556,7 @@
   },
   "ubuntu-wallpapers-zesty": {
     "realname": "Ubuntu 17.04 Backgrounds",
-    "iconurl": "file:///usr/share/icons/Adwaita/256x256/apps/preferences-desktop-wallpaper.png",
+    "iconurl": "file:///usr/share/icons/gnome/256x256/apps/preferences-desktop-wallpaper.png",
     "shortdescription": "Backgrounds from Ubuntu 17.04",
     "description": "",
     "author": "Canonical",
@@ -571,7 +571,7 @@
   },
   "mint-backgrounds-maya": {
     "realname": "Linux Mint 13 Backgrounds",
-    "iconurl": "file:///usr/share/icons/Adwaita/256x256/apps/preferences-desktop-wallpaper.png",
+    "iconurl": "file:///usr/share/icons/gnome/256x256/apps/preferences-desktop-wallpaper.png",
     "shortdescription": "Backgrounds from Linux Mint 13",
     "description": "The desktop backgrounds for Linux Mint 13 Maya",
     "author": "Linux Mint",
@@ -586,7 +586,7 @@
   },
   "mint-backgrounds-nadia": {
     "realname": "Linux Mint 14 Backgrounds",
-    "iconurl": "file:///usr/share/icons/Adwaita/256x256/apps/preferences-desktop-wallpaper.png",
+    "iconurl": "file:///usr/share/icons/gnome/256x256/apps/preferences-desktop-wallpaper.png",
     "shortdescription": "Backgrounds from Linux Mint 14",
     "description": "The desktop backgrounds for Linux Mint 14 Nadia",
     "author": "Linux Mint",
@@ -601,7 +601,7 @@
   },
   "mint-backgrounds-olivia": {
     "realname": "Linux Mint 15 Backgrounds",
-    "iconurl": "file:///usr/share/icons/Adwaita/256x256/apps/preferences-desktop-wallpaper.png",
+    "iconurl": "file:///usr/share/icons/gnome/256x256/apps/preferences-desktop-wallpaper.png",
     "shortdescription": "Backgrounds from Linux Mint 15",
     "description": "The desktop backgrounds for Linux Mint 15 Olivia",
     "author": "Linux Mint",
@@ -616,7 +616,7 @@
   },
   "mint-backgrounds-petra": {
     "realname": "Linux Mint 16 Backgrounds",
-    "iconurl": "file:///usr/share/icons/Adwaita/256x256/apps/preferences-desktop-wallpaper.png",
+    "iconurl": "file:///usr/share/icons/gnome/256x256/apps/preferences-desktop-wallpaper.png",
     "shortdescription": "Backgrounds from Linux Mint 16",
     "description": "The desktop backgrounds for Linux Mint 16 Petra",
     "author": "Linux Mint",
@@ -631,7 +631,7 @@
   },
   "mint-backgrounds-qiana": {
     "realname": "Linux Mint 17 Backgrounds",
-    "iconurl": "file:///usr/share/icons/Adwaita/256x256/apps/preferences-desktop-wallpaper.png",
+    "iconurl": "file:///usr/share/icons/gnome/256x256/apps/preferences-desktop-wallpaper.png",
     "shortdescription": "Backgrounds from Linux Mint 17",
     "description": "The desktop backgrounds for Linux Mint 17 Qiana",
     "author": "Linux Mint",
@@ -646,7 +646,7 @@
   },
   "mint-backgrounds-refaela": {
     "realname": "Linux Mint 17.2 Backgrounds",
-    "iconurl": "file:///usr/share/icons/Adwaita/256x256/apps/preferences-desktop-wallpaper.png",
+    "iconurl": "file:///usr/share/icons/gnome/256x256/apps/preferences-desktop-wallpaper.png",
     "shortdescription": "Backgrounds from Linux Mint 17.2",
     "description": "",
     "author": "Linux Mint",
@@ -661,7 +661,7 @@
   },
   "mint-backgrounds-rebecca": {
     "realname": "Linux Mint 17.1 Backgrounds",
-    "iconurl": "file:///usr/share/icons/Adwaita/256x256/apps/preferences-desktop-wallpaper.png",
+    "iconurl": "file:///usr/share/icons/gnome/256x256/apps/preferences-desktop-wallpaper.png",
     "shortdescription": "Backgrounds from Linux Mint 17.1",
     "description": "The desktop backgrounds for Linux Mint 17.1 Rebecca",
     "author": "Linux Mint",
@@ -676,7 +676,7 @@
   },
   "mint-backgrounds-retro": {
     "realname": "Original Linux Mint Backgrounds",
-    "iconurl": "file:///usr/share/icons/Adwaita/256x256/apps/preferences-desktop-wallpaper.png",
+    "iconurl": "file:///usr/share/icons/gnome/256x256/apps/preferences-desktop-wallpaper.png",
     "shortdescription": "Backgrounds from older Linux Mint releases",
     "description": "Backgrounds from early versions of Linux Mint",
     "author": "Linux Mint",
@@ -691,7 +691,7 @@
   },
   "mint-backgrounds-rosa": {
     "realname": "Linux Mint 17.3 Backgrounds",
-    "iconurl": "file:///usr/share/icons/Adwaita/256x256/apps/preferences-desktop-wallpaper.png",
+    "iconurl": "file:///usr/share/icons/gnome/256x256/apps/preferences-desktop-wallpaper.png",
     "shortdescription": "Backgrounds from Linux Mint 17.3",
     "description": "The desktop backgrounds for Linux Mint 17.3 Rosa",
     "author": "Linux Mint",
@@ -706,7 +706,7 @@
   },
   "mint-backgrounds-sarah": {
     "realname": "Linux Mint 18 Backgrounds",
-    "iconurl": "file:///usr/share/icons/Adwaita/256x256/apps/preferences-desktop-wallpaper.png",
+    "iconurl": "file:///usr/share/icons/gnome/256x256/apps/preferences-desktop-wallpaper.png",
     "shortdescription": "Backgrounds from Linux Mint 18",
     "description": "The desktop backgrounds for Linux Mint 18 Sarah",
     "author": "Linux Mint",
@@ -721,7 +721,7 @@
   },
   "mint-backgrounds-serena": {
     "realname": "Linux Mint 18.1 Backgrounds",
-    "iconurl": "file:///usr/share/icons/Adwaita/256x256/apps/preferences-desktop-wallpaper.png",
+    "iconurl": "file:///usr/share/icons/gnome/256x256/apps/preferences-desktop-wallpaper.png",
     "shortdescription": "Backgrounds from Linux Mint 18.1",
     "description": "The desktop backgrounds for Linux Mint 18.1 Serena",
     "author": "Linux Mint",
@@ -736,7 +736,7 @@
   },
   "mint-backgrounds-sonya": {
     "realname": "Linux Mint 18.2 Backgrounds",
-    "iconurl": "file:///usr/share/icons/Adwaita/256x256/apps/preferences-desktop-wallpaper.png",
+    "iconurl": "file:///usr/share/icons/gnome/256x256/apps/preferences-desktop-wallpaper.png",
     "shortdescription": "Backgrounds from Linux Mint 18.2",
     "description": "The desktop backgrounds for Linux Mint 18.2 Sonya",
     "author": "Linux Mint",
@@ -751,7 +751,7 @@
   },
   "mint-backgrounds-sylvia": {
     "realname": "Linux Mint 18.3 Backgrounds",
-    "iconurl": "file:///usr/share/icons/Adwaita/256x256/apps/preferences-desktop-wallpaper.png",
+    "iconurl": "file:///usr/share/icons/gnome/256x256/apps/preferences-desktop-wallpaper.png",
     "shortdescription": "Backgrounds from Linux Mint 18.3",
     "description": "The desktop backgrounds for Linux Mint 18.3 Sylvia",
     "author": "Linux Mint",
@@ -766,7 +766,7 @@
   },
   "mint-backgrounds-tara": {
     "realname": "Linux Mint 19 Backgrounds",
-    "iconurl": "file:///usr/share/icons/Adwaita/256x256/apps/preferences-desktop-wallpaper.png",
+    "iconurl": "file:///usr/share/icons/gnome/256x256/apps/preferences-desktop-wallpaper.png",
     "shortdescription": "Backgrounds from Linux Mint 19",
     "description": "The desktop backgrounds for Linux Mint 19 Tara",
     "author": "Linux Mint",
@@ -781,7 +781,7 @@
   },
   "mint-backgrounds-tessa": {
     "realname": "Linux Mint 19.1 Backgrounds",
-    "iconurl": "file:///usr/share/icons/Adwaita/256x256/apps/preferences-desktop-wallpaper.png",
+    "iconurl": "file:///usr/share/icons/gnome/256x256/apps/preferences-desktop-wallpaper.png",
     "shortdescription": "Backgrounds from Linux Mint 19.1",
     "description": "The desktop backgrounds for Linux Mint 19.1 Tessa",
     "author": "Linux Mint",
@@ -796,7 +796,7 @@
   },
   "mint-backgrounds-tina": {
     "realname": "Linux Mint 19.2 Backgrounds",
-    "iconurl": "file:///usr/share/icons/Adwaita/256x256/apps/preferences-desktop-wallpaper.png",
+    "iconurl": "file:///usr/share/icons/gnome/256x256/apps/preferences-desktop-wallpaper.png",
     "shortdescription": "Backgrounds from Linux Mint 19.2",
     "description": "The desktop backgrounds for Linux Mint 19.2 Tina",
     "author": "Linux Mint",

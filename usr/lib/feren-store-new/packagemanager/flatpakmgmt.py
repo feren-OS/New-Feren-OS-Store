@@ -4,11 +4,13 @@
 # Flatpak Management Python Script - use me for percentage obtaining in-GUI           #
 #                                                                                     #
 # PS: Do yourself a favour and use this: https://lazka.github.io/pgi-docs/Flatpak-1.0 #
+#                                                                                     #
+# Credits to Linux Mint (mintcommon) for most of this code                            #
+# https://github.com/linuxmint/mintcommon                                             #
 #######################################################################################
 
 
-#TODO: Make the code so it just accepts a dict of things to change as an argument and make it change according to those.
-#   Also make the code be able to interpret a JSON file of known Flatpak repositories to be able to add repositories manually if needed
+#TODO: Make the code be able to interpret a JSON file of known Flatpak repositories to be able to add repositories manually if needed
 #   Finally move getthemes and the ability to see what changes will be made into flatpakmgmt in the Store itself
 
 
@@ -22,7 +24,7 @@ import re
 
 gi.require_version('Gtk', '3.0')
 gi.require_version('Flatpak', '1.0')
-from gi.repository import Flatpak, Gtk, GLib
+from gi.repository import Flatpak, Gtk, GLib, Gio
 
 
 #determine if Superuser or not to determine install target
@@ -256,6 +258,12 @@ def add_remove_to_transaction(refthing, remotename, verboseoutput=False):
         print({"install": taskstbinstalled, "update": taskstbupdated, "remove": taskstbremoved})
 
 
+def get_ref_from_name(flatpakname):
+    for i in all_refs:
+        if i.get_name() == flatpakname and i.get_arch() == arch:
+            return i
+
+
 def flatpak_transaction_commit():
     global item_count
     global current_count
@@ -267,40 +275,89 @@ def flatpak_transaction_commit():
         item_count += len(taskstbupdated[remote])
     for remote in taskstbremoved:
         item_count += len(taskstbremoved[remote])
-    
-    print(item_count, taskstbinstalled, taskstbupdated, taskstbremoved)
-    pass
+
+    for remote in taskstbinstalled:
+        for ref in taskstbinstalled[remote]:
+            try:
+                ref2 = get_ref_from_name(ref)
+                flatpakclassthing.install(ref2.get_remote_name(),
+                                    ref2.get_kind(),
+                                    ref2.get_name(),
+                                    ref2.get_arch(),
+                                    ref2.get_branch(),
+                                    progress_flatpak_cb,
+                                    None,
+                                    None)
+            except GLib.Error as e:
+                if e.code != Gio.IOErrorEnum.CANCELLED:
+                    print("ERROR", ref2.format_ref(), e.message)
+                    return
+
+            current_count += 1
+            
+            print(math.floor(((current_count * (1.0/item_count)) * 100.0)))
+
+    for remote in taskstbremoved:
+        for ref in taskstbremoved[remote]:
+            try:
+                ref2 = get_ref_from_name(ref)
+                #Fake 90% because Flatpak doesn't actually mark progress when removing
+                print(math.floor(((current_count * (1.0 / item_count)) + (0.9 / item_count)) * 100.0))
+                flatpakclassthing.uninstall(ref2.get_kind(),
+                                    ref2.get_name(),
+                                    ref2.get_arch(),
+                                    ref2.get_branch(),
+                                    progress_flatpak_cb,
+                                    None,
+                                    None)
+            except GLib.Error as e:
+                if e.code != Gio.IOErrorEnum.CANCELLED:
+                    print("ERROR", ref2.format_ref(), e.message)
+                    return
+
+            current_count += 1
+            
+            print(math.floor(((current_count * (1.0/item_count)) * 100.0)))
+
+    for remotes in taskstbupdated:
+        for ref in taskstbupdated[remotes]:
+            try:
+                ref2 = get_ref_from_name(ref)
+                flatpakclassthing.update(Flatpak.UpdateFlags.NONE,
+                                    ref2.get_remote_name(),
+                                    ref2.get_kind(),
+                                    ref2.get_name(),
+                                    ref2.get_arch(),
+                                    ref2.get_branch(),
+                                    progress_flatpak_cb,
+                                    None,
+                                    None)
+            except GLib.Error as e:
+                if e.code != Gio.IOErrorEnum.CANCELLED:
+                    print("ERROR", ref2.format_ref(), e.message)
+                    return
+
+            current_count += 1
+            
+            print(math.floor(((current_count * (1.0/item_count)) * 100.0)))
+
+    print("DONE")
 
 
-def get_ref_from_name(flatpakname):
-    for i in all_refs:
-        if i.get_name() == flatpakname and i.get_arch() == arch:
-            return i
-
-
-def flatpak_install(flatpakname, remote):
-    #Get ref using name
-    ref = get_ref_from_name(flatpakname)
-    #Get full lists of things to change
-    add_install_to_transaction(ref, remote)
+def flatpak_install(remote):
+    taskstbinstalled[remote] = sys.argv[3:]
     #Commit the transaction
     flatpak_transaction_commit()
 
 
-def flatpak_upgrade(flatpakname, remote):
-    #Get ref using name
-    ref = get_ref_from_name(flatpakname)
-    #Get full lists of things to change
-    add_install_to_transaction(ref, remote)
+def flatpak_upgrade(remote):
+    taskstbupdated[remote] = sys.argv[3:]
     #Commit the transaction
     flatpak_transaction_commit()
 
 
-def flatpak_remove(flatpakname, remote):
-    #Get ref using name
-    ref = get_ref_from_name(flatpakname)
-    #Get full lists of things to change
-    add_remove_to_transaction(ref, remote)
+def flatpak_remove(remote):
+    taskstbremoved[remote] = sys.argv[3:]
     #Commit the transaction
     flatpak_transaction_commit()
 
@@ -343,7 +400,7 @@ def sortref(ref):
 
     return val
 
-if len(sys.argv) == 4:
+if len(sys.argv) >= 4:
     pass
 elif len(sys.argv) == 2:
     if sys.argv[1] == "getthemes":
@@ -406,8 +463,8 @@ else:
     exit(1)
 
 if sys.argv[1] == "install":
-    flatpak_install(sys.argv[2], sys.argv[3])
+    flatpak_install(sys.argv[2])
 elif sys.argv[1] == "upgrade":
-    flatpak_upgrade(sys.argv[2], sys.argv[3])
+    flatpak_upgrade(sys.argv[2])
 elif sys.argv[1] == "remove":
-    flatpak_remove(sys.argv[2], sys.argv[3])
+    flatpak_remove(sys.argv[2])

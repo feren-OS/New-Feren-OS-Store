@@ -22,12 +22,11 @@
 //     xmlhttp.send();
 // }
 
-
-//TEMPORARY
-function gotopackage() {
-    window.location.href = ("packagepage.html?package="+document.getElementById("gototextbox").value);
+function gotopackage(packagename) {
+    window.location.href = ("packagepage.html?package="+packagename);
 }
 
+//TEMPORARY
 function mkbutton(packagename) {
     //TODO: Stop this from running multiple times at once
     var newbutton = document.createElement("input");

@@ -826,7 +826,7 @@
   },
   "feren-theme-colouriser-cinnamon-win10": {
     "realname": "Windows 10 Theme Colouriser",
-    "iconurl": "file:///usr/share/icons/Inspire/256/apps/preferences-theme.png",
+    "iconurl": "https://github.com/B00merang-Artwork/Windows-10/blob/master/256x256/apps/preferences-desktop-theme.png?raw=true",
     "shortdescription": "Theme Colouriser for the Windows 10 Theme (Feren OS Classic only)",
     "description": "'Windows 10' Theme Colouriser (Cinnamon) for Feren Theme Colouriser",
     "author": "The Feren OS Developer",
@@ -841,7 +841,7 @@
   },
   "feren-theme-colouriser-cinnamon-win8": {
     "realname": "Windows 8 Theme Colouriser",
-    "iconurl": "file:///usr/share/icons/Inspire/256/apps/preferences-theme.png",
+    "iconurl": "https://github.com/B00merang-Artwork/Windows-8/blob/master/256x256/apps/preferences-desktop-theme.png?raw=true",
     "shortdescription": "Theme Colouriser for the Windows 8 Theme (Feren OS Classic only)",
     "description": "'Windows8' Theme Colouriser (Cinnamon) for Feren Theme Colouriser",
     "author": "The Feren OS Developer",

@@ -884,9 +884,7 @@ class AppView(WebKit2.WebView):
         
     def _goto_packageview(self, packagename):
         #file = os.path.abspath(os.path.join(translations.get_pages_path(), "packagepage.html"))
-        file = os.path.abspath("/usr/share/feren-store-new/packagepage.html")
-        uri = 'file://' + urllib.request.pathname2url(file+"?package="+packagename)
-        self.load_uri(uri)
+        self.run_javascript('gotopackage("'+packagename+'")')
 
     def _btn_goto_packageview(self, btn, packagename):
         self._goto_packageview(packagename)

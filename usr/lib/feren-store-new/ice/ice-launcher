@@ -1,0 +1,15 @@
+#!/bin/bash
+#$1 - Profile
+#$2 - URL
+#$3 - (Temporary) Browser
+
+if [ "$3" = "firefox" ]; then
+    /usr/lib/feren-store-new/ice/browsers/ice-firefox "$1" "$2"
+    exit $?
+elif [ "$3" = "epiphany" ]; then
+    epiphany --application-mode --profile="$HOME/.local/share/feren-store-ice/epiphany/epiphany-$1" "$2"
+    exit $?
+else
+    "$3" --app="$2" --class="ICE-SSB-$1" --user-data-dir="$HOME/.local/share/ice/profiles/$1"
+    exit $?
+fi

@@ -32,18 +32,16 @@ _CHROME_BIN = "/usr/bin/google-chrome"
 _CHROMIUM_BIN = "/usr/bin/chromium-browser"
 _VIVALDI_BIN = "/usr/bin/vivaldi-stable"
 _FIREFOX_BIN = "/usr/bin/firefox"
-_EPIPHANY_BIN = "/usr/bin/epiphany-browser"
 _HOME = os.getenv("HOME")
 _ICE_DIR = "{0}/.local/share/feren-store-ice".format(_HOME)
 _ICON_DIR = "{0}/icons".format(_ICE_DIR)
 _APPS_DIR = "{0}/.local/share/applications".format(_HOME)
 _PROFILES_DIR = "{0}/profiles".format(_ICE_DIR)
 _FF_PROFILES_DIR = "{0}/firefox".format(_ICE_DIR)
-_EPIPHANY_PROFILES_DIR = "{0}/epiphany".format(_ICE_DIR)
 
 # Requisite dirs
 for directory in [_ICE_DIR, _APPS_DIR, _PROFILES_DIR,
-                  _FF_PROFILES_DIR, _ICON_DIR, _EPIPHANY_PROFILES_DIR]:
+                  _FF_PROFILES_DIR, _ICON_DIR]:
     if not os.path.exists(directory):
         os.makedirs(directory)
 
@@ -73,6 +71,10 @@ class Ice():
 
 
     def applicate(self):
+        if sys.argv[6] != "google-chrome" and sys.argv[6] != "chromium-browser" and sys.argv[6] != "brave" and sys.argv[6] != "vivaldi" and sys.argv[6] != "firefox":
+            print("ERROR unsupportedbrowser")
+            exit(1)
+
         self.semiformatted = ""
         self.array = filter(str.isalpha, self.title)
         for obj in self.array:
@@ -113,6 +115,8 @@ class Ice():
         self.appfile = os.path.expanduser("{0}/feren-store-ssb-{1}.desktop".format(_APPS_DIR,
                                                                    formatted))
 
+        self.browser = sys.argv[6] #"google-chrome", "chromium-browser", "brave", "vivaldi", "firefox", "epiphany"
+
         with open(self.appfile, 'w') as self.appfile1:
             self.appfile1.truncate()
 
@@ -123,31 +127,39 @@ class Ice():
 
             self.profile_path = "{0}/{1}".format(_PROFILES_DIR,
                                                     formatted)
-            #TODO: Change this to be one shortcut that launches the user's preferred browser accordingly
-            self.appfile1.write("Exec=/usr/lib/feren-store-new/ice/ice-launcher " + formatted + " " + address + " vivaldi\n")
 
-            self.appfile1.write("X-FEREN-STORE-ICE-SSB-Profile=" + formatted + "\n")
+            if self.browser == "firefox":
+                self.firefox_profile_path = "{0}/{1}".format(_FF_PROFILES_DIR,
+                                                             formatted)
+                self.appfile1.write("Exec=" + self.browser +
+                                    " --class FEREN-STORE-ICE-SSB-" + formatted +
+                                    " --profile " + self.firefox_profile_path +
+                                    " --no-remote " + address + "\n")
+
+                self.appfile1.write("IceFirefox={0}\n".format(formatted))
+                os.system("/usr/lib/feren-store-new/ice/browsers/ice-firefox "+formatted)
+            else:
+                self.profile_path = "{0}/{1}".format(_PROFILES_DIR,
+                                                        formatted)
+                self.appfile1.write("Exec=" + self.browser +
+                                    " --app=" + address +
+                                    " --class=FEREN-STORE-ICE-SSB-" + formatted +
+                                    " --user-data-dir=" +
+                                    self.profile_path + "\n")
+
+                self.appfile1.write("X-FEREN-STORE-ICE-SSB-Profile=" +
+                                    formatted + "\n")
 
             self.appfile1.write("Terminal=false\n")
             self.appfile1.write("X-MultipleArgs=false\n")
             self.appfile1.write("Type=Application\n")
 
-            self.epiphany_profile_path = "{0}/{1}".format(
-                _EPIPHANY_PROFILES_DIR, "epiphany-" + formatted
-            )
             self.appfile1.write(
-                "Icon={0}/app-icon.{2}\n".format(
-                self.epiphany_profile_path,
+                "Icon={0}/{1}.{2}\n".format(
+                _ICON_DIR,
                 formatted,
                 iconext
             ))
-            #else:
-            #    self.appfile1.write(
-            #        "Icon={0}/{1}.{2}\n".format(
-            #        _ICON_DIR,
-            #        formatted,
-            #        iconext
-            #    ))
 
             self.appfile1.write("Categories=GTK;{0}\n".format(location))
             self.appfile1.write("MimeType=text/html;text/xml;"
@@ -158,18 +170,6 @@ class Ice():
             )
             self.appfile1.write("StartupNotify=true\n")
             os.system("chmod +x " + self.appfile)
-
-            self.init_epiphany_profile(self.epiphany_profile_path, formatted, iconext, self.appfile)
-
-    def init_epiphany_profile(self, path, formatted, iconext, appfile):
-        if os.path.exists(path):
-            shutil.rmtree(path)
-        os.makedirs(path)
-        shutil.copyfile("{0}/{1}.{2}".format(_ICON_DIR, formatted, iconext),
-                        "{0}/app-icon.{1}".format(path, iconext))
-        os.replace(appfile, "{0}/epiphany-{1}.desktop".format(path, formatted))
-        os.symlink("{0}/epiphany-{1}.desktop".format(path, formatted), appfile)
-        os.system("chmod +x {0}/epiphany-{1}.desktop".format(path, formatted))
 
     def delete(self):
         self.semiformatted = ""
@@ -184,19 +184,18 @@ class Ice():
         self.appfilelines = self.appfileopen.readlines()
         self.appfileopen.close()
 
-        for line in self.appfilelines:
-            try:
-                shutil.rmtree("{0}/{1}".format(_PROFILES_DIR, self.formatted))
-            except:
-                pass
-            try:
-                shutil.rmtree("{0}/{1}".format(_FF_PROFILES_DIR, self.formatted))
-            except:
-                pass
-            try:
-                shutil.rmtree("{0}/epiphany-{1}".format(_EPIPHANY_PROFILES_DIR, self.formatted))
-            except:
-                pass
+        try:
+            shutil.rmtree("{0}/{1}".format(_PROFILES_DIR, self.formatted))
+        except:
+            pass
+        try:
+            shutil.rmtree("{0}/{1}".format(_FF_PROFILES_DIR, self.formatted))
+        except:
+            pass
+        try:
+            shutil.rmtree("{0}/epiphany-{1}".format(_EPIPHANY_PROFILES_DIR, self.formatted))
+        except:
+            pass
 
         os.remove(self.appfile)
 

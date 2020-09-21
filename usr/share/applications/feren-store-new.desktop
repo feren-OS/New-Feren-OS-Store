@@ -4,7 +4,7 @@
 Terminal=false
 Type=Application
 StartupNotify=false
-Name=Store
+Name=Store (New Feren OS Store)
 Exec=/usr/bin/feren-store-new
 Icon=softwarecenter
 Comment=Get applications for Feren OS

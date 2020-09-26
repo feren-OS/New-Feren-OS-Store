@@ -1,0 +1,31 @@
+#!/usr/bin/python3
+### Feren Store APT Man-In-The-Middle - checks for snapd and flatpak, and if they are in the arguments, if $1 is install, and prompts accordingly.
+
+import sys
+import subprocess
+import os
+snapdin = False
+flatpakin = False
+autoyes = False
+
+if len(sys.argv) >= 2:
+    if sys.argv[1] == "install":
+        for argument in sys.argv[2:]:
+            if argument == "snapd":
+                snapdin = True
+            elif argument == "flatpak":
+                flatpakin = True
+            elif argument == "-y" or argument == "--yes" or argument == "--assume-yes":
+                autoyes = True
+            elif argument == "--help" or argument == "-h":
+                exit(0)
+        if snapdin == True and not os.path.isfile("/usr/bin/snapd"):
+            if autoyes == False:
+                response = input('Snap Store is currently disabled in your Application Sources. Would you like to enable it? [y/N] ').upper()
+            if autoyes == True or response == "Y" or response == "YES":
+                subprocess.Popen(["/usr/bin/feren-appsources-settings", "--activate-snapstore"]).wait()
+        if flatpakin == True and not os.path.isfile("/usr/bin/flatpak"):
+            if autoyes == False:
+                response = input('Flatpak is currently disabled in your Application Sources. Would you like to enable it? [y/N] ').upper()
+            if autoyes == True or response == "Y" or response == "YES":
+                subprocess.Popen(["/usr/bin/feren-appsources-settings", "--activate-flatpak"]).wait()

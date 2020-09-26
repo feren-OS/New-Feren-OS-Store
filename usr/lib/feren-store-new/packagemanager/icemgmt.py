@@ -51,11 +51,6 @@ class Ice():
 
     def __init__(self):
         self.known_profiles = []
-
-        self.address = self.normalize(sys.argv[2])
-        self.title = sys.argv[3]
-        self.loc = sys.argv[4]
-        self.iconpath = sys.argv[5]
     
 
     def normalize(self, url):
@@ -71,6 +66,11 @@ class Ice():
 
 
     def applicate(self):
+        self.address = self.normalize(sys.argv[2])
+        self.title = sys.argv[3]
+        self.loc = sys.argv[4]
+        self.iconpath = sys.argv[5]
+
         if sys.argv[6] != "google-chrome" and sys.argv[6] != "chromium-browser" and sys.argv[6] != "brave" and sys.argv[6] != "vivaldi" and sys.argv[6] != "firefox":
             print("ERROR unsupportedbrowser")
             exit(1)
@@ -165,6 +165,8 @@ class Ice():
             self.appfile1.write("MimeType=text/html;text/xml;"
                                 "application/xhtml_xml;\n")
 
+            self.appfile1.write("Keywords="+sys.argv[7]+"\n")
+
             self.appfile1.write(
                 "StartupWMClass=FEREN-STORE-ICE-SSB-{0}\n".format(formatted)
             )
@@ -172,6 +174,9 @@ class Ice():
             os.system("chmod +x " + self.appfile)
 
     def delete(self):
+        self.address = self.normalize(sys.argv[2])
+        self.title = sys.argv[3]
+
         self.semiformatted = ""
         self.array = filter(str.isalpha, self.title)
         for obj in self.array:

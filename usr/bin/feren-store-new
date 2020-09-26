@@ -64,21 +64,30 @@ class JSONReader():
     '''
 
     def __init__(self):
+        with open("/usr/share/feren-store-new/curated/store-internalnames/packages.json") as file:
+            self.internalpkgnames = json.load(file)
         with open("/usr/share/feren-store-new/curated/apt/packages.json") as file:
             self.aptdata = json.load(file)
-        #with open("/usr/share/feren-store-new/curated/snap/packages.json") as file:
-        #    self.snapdata = json.load(file)
-        #with open("/usr/share/feren-store-new/curated/flatpak/packages.json") as file:
-        #    self.flatpakdata = json.load(file)
-        #with open("/usr/share/feren-store-new/curated/ice/packages.json") as file:
-        #    self.icedata = json.load(file)
+        with open("/usr/share/feren-store-new/curated/snap/packages.json") as file:
+            self.snapdata = json.load(file)
+        with open("/usr/share/feren-store-new/curated/flatpak/packages.json") as file:
+            self.flatpakdata = json.load(file)
+        with open("/usr/share/feren-store-new/curated/ice/websites.json") as file:
+            self.icedata = json.load(file)
         with open("/usr/share/feren-store-new/curated/sources/packages.json") as file:
             self.availablesources = json.load(file)
+        with open("/usr/share/feren-store-new/curated/package-generic-data.json") as file:
+            self.genericpkgdata = json.load(file)
 
-    def getPackageInfo(self, packagename):
-        #TODO: Change this to have an extra argument for which package type this should be for
+    def getPackageInfo(self, packagename, pkgtype):
         try:
-            return self.aptdata[packagename]["realname"], self.aptdata[packagename]["shortdescription"], self.aptdata[packagename]["iconurl"]
+            # I did consider having these be split information-wise, but then I thought better of that because of the fact packages are usually too similar throughout package types to warrant unique names and descriptions.
+            if pkgtype == "apt" or pkgtype == "snap" or pkgtype == "flatpak":
+                return self.genericpkgdata[packagename]["realname"], self.genericpkgdata[packagename]["shortdescription"], self.genericpkgdata[packagename]["iconurl"]
+            elif pkgtype == "ice":
+                return self.icedata[packagename]["realname"], "Web Application", self.icedata[packagename]["iconurl"]
+            else:
+                return None, None, None
         except KeyError:
             return None, None, None
         
@@ -891,7 +900,7 @@ class AppView(WebKit2.WebView):
 
     def _generate_apps_list(self, category):
         #TODO: Make it category-specific
-        for package in classnetwork.JSONReader.aptdata:
+        for package in classnetwork.JSONReader.icedata:
             app.run_javascript('mkbutton("'+package+'")')
             
     def packagepagestuff(self):
@@ -1005,11 +1014,6 @@ class AppView(WebKit2.WebView):
             classnetwork.StoreWindow.gothemes_btn.set_visible(True)
             classnetwork.StoreWindow.gowebsites_btn.set_visible(True)
             classnetwork.AppDetailsHeader.set_visible(False)
-            
-            if self.add_buttons == True:
-                applistthread = Thread(target=self._generate_apps_list,
-                                    args=("e",))
-                applistthread.start()
         elif current_page == 'themespage.html':
             classnetwork.StoreWindow.gothemes_btn.handler_block(classnetwork.StoreWindow.gothemes_handle_id)
             classnetwork.StoreWindow.gothemes_btn.set_active(True)
@@ -1030,6 +1034,11 @@ class AppView(WebKit2.WebView):
             classnetwork.StoreWindow.gothemes_btn.set_visible(True)
             classnetwork.StoreWindow.gowebsites_btn.set_visible(True)
             classnetwork.AppDetailsHeader.set_visible(False)
+            
+            if self.add_buttons == True:
+                applistthread = Thread(target=self._generate_apps_list,
+                                    args=("e",))
+                applistthread.start()
         elif current_page.startswith('packagepage.html'):
             classnetwork.StoreWindow.gohome_btn.set_visible(False)
             classnetwork.StoreWindow.goapps_btn.set_visible(False)

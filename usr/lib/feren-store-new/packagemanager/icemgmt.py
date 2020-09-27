@@ -75,11 +75,7 @@ class Ice():
             print("ERROR unsupportedbrowser")
             exit(1)
 
-        self.semiformatted = ""
-        self.array = filter(str.isalpha, self.title)
-        for obj in self.array:
-            self.semiformatted = self.semiformatted + obj
-        self.formatted = self.semiformatted.lower()
+        self.formatted = sys.argv[8]
         
         if self.loc == "Accessories":
             self.location = "Utility;"
@@ -98,21 +94,18 @@ class Ice():
         elif self.loc == "System":
             self.location = "System;"
 
-        self.iconname = self.iconpath.replace("/", " ").split()[-1]
-        self.iconext = self.iconname.replace(".", " ").split()[-1]
-
         if os.path.exists("{0}/{1}.desktop".format(_APPS_DIR, self.formatted)):
             os.remove("{0}/{1}.desktop".format(_APPS_DIR, self.formatted))
         if len(self.title) == 0:
             exit(1)
         else:
             self.writefile(self.title, self.formatted, self.address,
-                           self.iconext, self.location)
+                           self.location)
 
-    def writefile(self, title, formatted, address, iconext, location):
+    def writefile(self, title, formatted, address, location):
         shutil.copyfile(self.iconpath,
-                        "{0}/{1}.{2}".format(_ICON_DIR, formatted, iconext))
-        self.appfile = os.path.expanduser("{0}/feren-store-ssb-{1}.desktop".format(_APPS_DIR,
+                        "{0}/{1}".format(_ICON_DIR, formatted))
+        self.appfile = os.path.expanduser("{0}/{1}.desktop".format(_APPS_DIR,
                                                                    formatted))
 
         self.browser = sys.argv[6] #"google-chrome", "chromium-browser", "brave", "vivaldi", "firefox", "epiphany"
@@ -155,10 +148,9 @@ class Ice():
             self.appfile1.write("Type=Application\n")
 
             self.appfile1.write(
-                "Icon={0}/{1}.{2}\n".format(
+                "Icon={0}/{1}\n".format(
                 _ICON_DIR,
-                formatted,
-                iconext
+                formatted
             ))
 
             self.appfile1.write("Categories=GTK;{0}\n".format(location))
@@ -177,13 +169,9 @@ class Ice():
         self.address = self.normalize(sys.argv[2])
         self.title = sys.argv[3]
 
-        self.semiformatted = ""
-        self.array = filter(str.isalpha, self.title)
-        for obj in self.array:
-            self.semiformatted = self.semiformatted + obj
-        self.formatted = self.semiformatted.lower()
+        self.formatted = sys.argv[8]
 
-        self.appfile = "{0}/feren-store-ssb-{1}.desktop".format(_APPS_DIR, self.formatted)
+        self.appfile = "{0}/{1}.desktop".format(_APPS_DIR, self.formatted)
 
         self.appfileopen = open(self.appfile, 'r')
         self.appfilelines = self.appfileopen.readlines()

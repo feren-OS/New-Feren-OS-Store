@@ -51,6 +51,7 @@ from notify2 import Notification, init as NotifyInit
 from os.path import expanduser
 
 from feren_store.aptmgmt import APTMgmt, APTChecks
+from feren_store.icemgmt import ICEMgmt
 
 import apt
 
@@ -79,6 +80,22 @@ class JSONReader():
         with open("/usr/share/feren-store-new/curated/package-generic-data.json") as file:
             self.genericpkgdata = json.load(file)
 
+    def getNameFromInternal(self, internalname, pkgtype):
+        try:
+            return self.internalpkgnames[packagename][pkgtype]
+        except:
+            return None
+
+    def getInternalFromName(self, packagename, pkgtype):
+        try:
+            for pkg in self.internalpkgnames:
+                if pkg[pkgtype] == packagename:
+                    return pkg
+            else:
+                return None
+        except:
+            return None
+
     def getPackageInfo(self, packagename, pkgtype):
         try:
             # I did consider having these be split information-wise, but then I thought better of that because of the fact packages are usually too similar throughout package types to warrant unique names and descriptions.
@@ -91,12 +108,18 @@ class JSONReader():
         except KeyError:
             return None, None, None
         
-    def getPackageSiteInfo(self, packagename):
-        #TODO: Change this to have an extra argument for which package type this should be for
+    def getPackageSiteInfo(self, packagename, pkgtype):
         try:
-            return self.aptdata[packagename]["description"], self.aptdata[packagename]["author"], self.aptdata[packagename]["bugreporturl"], self.aptdata[packagename]["website"], self.aptdata[packagename]["tos"], self.aptdata[packagename]["category"], self.aptdata[packagename]["image1"], self.aptdata[packagename]["image2"], self.aptdata[packagename]["image3"]
+            if pkgtype == "apt":
+                return self.genericpkgdata[packagename]["description"], self.aptdata[packagename]["author"], self.aptdata[packagename]["bugreporturl"], self.genericpkgdata[packagename]["website"], self.aptdata[packagename]["tos"], self.aptdata[packagename]["privpol"], self.genericpkgdata[packagename]["category"], self.genericpkgdata[packagename]["image1"], self.genericpkgdata[packagename]["image2"], self.genericpkgdata[packagename]["image3"]
+            elif pkgtype == "snap":
+                return self.genericpkgdata[packagename]["description"], self.snapdata[packagename]["author"], self.snapdata[packagename]["bugreporturl"], self.genericpkgdata[packagename]["website"], self.snapdata[packagename]["tos"], self.snapdata[packagename]["privpol"], self.genericpkgdata[packagename]["category"], self.genericpkgdata[packagename]["image1"], self.genericpkgdata[packagename]["image2"], self.genericpkgdata[packagename]["image3"]
+            elif pkgtype == "flatpak":
+                return self.genericpkgdata[packagename]["description"], self.flatpakdata[packagename]["author"], self.flatpakdata[packagename]["bugreporturl"], self.genericpkgdata[packagename]["website"], self.flatpakdata[packagename]["tos"], self.flatpakdata[packagename]["privpol"], self.genericpkgdata[packagename]["category"], self.genericpkgdata[packagename]["image1"], self.genericpkgdata[packagename]["image2"], self.genericpkgdata[packagename]["image3"]
+            elif pkgtype == "ice":
+                return self.icedata[packagename]["description"], None, None, self.icedata[packagename]["website"], None, None, self.icedata[packagename]["category"], self.icedata[packagename]["image1"], self.icedata[packagename]["image2"], self.icedata[packagename]["image3"]
         except KeyError:
-            return None, None, None
+            return None, None, None, None, None, None, None, None, None, None
         
 ####Source Names translator
 class ApplicationSourceTranslator():
@@ -321,7 +344,7 @@ class TasksMgmt(object):
             self.currenttasks.remove(task)
             self.currenttask = ""
             if classnetwork.AppDetailsHeader.current_package == task.split('apt:inst:')[1]:
-                classnetwork.AppDetailsHeader.btns_get_package_status("apt", task.split('apt:inst:')[1])
+                classnetwork.AppDetailsHeader.btns_get_package_status(task.split('apt:inst:')[1])
         elif task.startswith("apt:upgr:"):
             classnetwork.APTMgmt.apt_client.upgrade_packages([task.split('apt:upgr:')[1]],
                                         reply_handler=classnetwork.APTMgmt.confirm_changes,
@@ -337,7 +360,7 @@ class TasksMgmt(object):
             self.currenttasks.remove(task)
             self.currenttask = ""
             if classnetwork.AppDetailsHeader.current_package == task.split('apt:upgr:')[1]:
-                classnetwork.AppDetailsHeader.btns_get_package_status("apt", task.split('apt:upgr:')[1])
+                classnetwork.AppDetailsHeader.btns_get_package_status(task.split('apt:upgr:')[1])
         elif task.startswith("apt:rm:"):
             classnetwork.APTMgmt.apt_client.remove_packages([task.split('apt:rm:')[1]],
                                         reply_handler=classnetwork.APTMgmt.confirm_changes,
@@ -353,7 +376,7 @@ class TasksMgmt(object):
             self.currenttasks.remove(task)
             self.currenttask = ""
             if classnetwork.AppDetailsHeader.current_package == task.split('apt:rm:')[1]:
-                classnetwork.AppDetailsHeader.btns_get_package_status("apt", task.split('apt:rm:')[1])
+                classnetwork.AppDetailsHeader.btns_get_package_status(task.split('apt:rm:')[1])
         elif task.startswith("flatpak:inst:"):
             pass
 
@@ -434,7 +457,8 @@ class AppDetailsHeader(Gtk.Box):
         classnetwork.AppDetailsHeader = self
         
         self.get_style_context().add_class("only-toolbar")
-        
+
+        self.current_package_type = ""        
         
         box_application_namedesc = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         
@@ -471,7 +495,7 @@ class AppDetailsHeader(Gtk.Box):
         self.app_mgmt_button.add_named(self.app_mgmt_installunavailbtn, "InstallRepo")
         self.app_mgmt_button.add_named(self.app_mgmt_removebtn, "Remove")
         self.app_mgmt_button.set_visible_child(self.app_mgmt_preparingbtns)
-        self.app_mgmt_preparingbtns.start()
+        #self.app_mgmt_preparingbtns.start()
         
         #Application Source Combobox
         self.app_source_dropdown = Gtk.ComboBox()
@@ -548,6 +572,11 @@ class AppDetailsHeader(Gtk.Box):
         #Initialize Management
         self.APTMgmt = APTMgmt(classnetwork)
         classnetwork.APTMgmt = self.APTMgmt
+        self.ICEMgmt = ICEMgmt(classnetwork)
+        classnetwork.ICEMgmt = self.ICEMgmt
+
+        self.app_mgmt_button.set_visible_child(self.app_mgmt_preparingbtns)
+        self.app_mgmt_updatebtn.set_visible(False)
         
         GObject.threads_init()
         
@@ -593,37 +622,59 @@ class AppDetailsHeader(Gtk.Box):
         self.app_title.set_label(apprname)
         self.app_desc.set_label(appshortdesc)
     
-    def set_source(self, packagesource):
+    def set_package_type(self, packagesource):
         #Set the application source to the one selected in the source dropdown
-        pass
+        self.current_package_type = packagesource
+
+    def get_package_type(self):
+        return self.current_package_type
     
     def get_sources(self, jsondata, package):
-        #Using the JSON Data from sources/packages.json, populate the sources dropdown according to what's available
-        sourcenames, orderofsources = [classnetwork.JSONReader.availablesources[package]["apt"], classnetwork.JSONReader.availablesources[package]["flatpak"], classnetwork.JSONReader.availablesources[package]["snap"]], classnetwork.JSONReader.availablesources[package]["order-of-importance"]
-        
-        
         iface_list_store = Gtk.ListStore(GObject.TYPE_STRING)
         amount_of_sources = 0
-        
-        for sourcename in orderofsources:
-            if sourcename == "apt":
-                #apt source
-                friendlysourcename = ApplicationSourceTranslator().TranslateToHumanReadable(sourcenames[0])
-                if friendlysourcename:
-                    iface_list_store.append([friendlysourcename])
-                    amount_of_sources += 1
-            elif sourcename == "flatpak":
-                #flatpak source
-                friendlysourcename = ApplicationSourceTranslator().TranslateToHumanReadable(sourcenames[1])
-                if friendlysourcename:
-                    iface_list_store.append([friendlysourcename])
-                    amount_of_sources += 1
-            elif sourcename == "snap":
-                #snap source
-                friendlysourcename = ApplicationSourceTranslator().TranslateToHumanReadable(sourcenames[2])
-                if friendlysourcename:
-                    iface_list_store.append([friendlysourcename])
-                    amount_of_sources += 1
+
+        if package.startswith("feren-ice-ssb-"):
+            #TODO: Put preferred browser at top of list
+            if os.path.isfile("/usr/bin/vivaldi-stable"):
+                iface_list_store.append(["Vivaldi"])
+                amount_of_sources += 1
+            if os.path.isfile("/usr/bin/google-chrome"):
+                iface_list_store.append(["Google Chrome"])
+                amount_of_sources += 1
+            if os.path.isfile("/usr/bin/chromium-browser"):
+                iface_list_store.append(["Chromium"])
+                amount_of_sources += 1
+            if os.path.isfile("/usr/bin/firefox"):
+                iface_list_store.append(["Mozilla Firefox"])
+                amount_of_sources += 1
+            if os.path.isfile("/usr/bin/brave-browser"):
+                iface_list_store.append(["Brave"])
+                amount_of_sources += 1
+
+
+        else:
+            #Using the JSON Data from sources/packages.json, populate the sources dropdown according to what's available
+            sourcenames, orderofsources = [classnetwork.JSONReader.availablesources[package]["apt"], classnetwork.JSONReader.availablesources[package]["flatpak"], classnetwork.JSONReader.availablesources[package]["snap"]], classnetwork.JSONReader.availablesources[package]["order-of-importance"]
+            
+            for sourcename in orderofsources:
+                if sourcename == "apt":
+                    #apt source
+                    friendlysourcename = ApplicationSourceTranslator().TranslateToHumanReadable(sourcenames[0])
+                    if friendlysourcename:
+                        iface_list_store.append([friendlysourcename])
+                        amount_of_sources += 1
+                elif sourcename == "flatpak":
+                    #flatpak source
+                    friendlysourcename = ApplicationSourceTranslator().TranslateToHumanReadable(sourcenames[1])
+                    if friendlysourcename:
+                        iface_list_store.append([friendlysourcename])
+                        amount_of_sources += 1
+                elif sourcename == "snap":
+                    #snap source
+                    friendlysourcename = ApplicationSourceTranslator().TranslateToHumanReadable(sourcenames[2])
+                    if friendlysourcename:
+                        iface_list_store.append([friendlysourcename])
+                        amount_of_sources += 1
         
         self.app_source_dropdown.set_model(iface_list_store)
         self.app_source_dropdown.set_active(0)
@@ -654,8 +705,6 @@ class AppDetailsHeader(Gtk.Box):
         self.app_mgmt_installunavailbtn.set_sensitive(False)
         self.app_mgmt_removebtn.set_sensitive(False)
         self.app_mgmt_updatebtn.set_sensitive(False)
-        if self.sources_visible:
-            self.app_source_dropdown.set_visible(True)
         
         if newstate == "loading":
             self.app_mgmt_progress_box.set_visible(False)
@@ -706,11 +755,11 @@ class AppDetailsHeader(Gtk.Box):
             self.app_mgmt_button.set_visible_child(self.app_mgmt_removebtn)
             self.app_mgmt_preparingbtns.stop()
     
-    def btns_get_package_status(self, packagetype, package):
+    def btns_get_package_status(self, package):
         #Get the state of the package for changing the buttons presented to the user accordingly - is it installed? does it need an update?
         #packagetype is whether it's native, snap, ice or flatpak
         self.change_button_state("loading", False)
-        if packagetype == "apt":
+        if self.current_package_type == "apt":
             if ("apt:inst:"+package in classnetwork.TasksMgmt.currenttasks or "apt:upgr:"+package in classnetwork.TasksMgmt.currenttasks or "apt:rm:"+package in classnetwork.TasksMgmt.currenttasks) and not (classnetwork.TasksMgmt.currenttask.startswith("apt:") and classnetwork.TasksMgmt.currenttask.endswith(":"+package)):
                 self.change_button_state("queued", False)
                 return
@@ -731,6 +780,18 @@ class AppDetailsHeader(Gtk.Box):
                         self.change_button_state("sourcemissing", package == "feren-store")
                     else:
                         self.change_button_state("uninstalled", False)
+        
+
+
+        elif self.current_package_type == "ice":
+            self.app_source_dropdown.set_visible(False)
+            self.change_button_state("loading", False)
+            if os.path.isfile(os.path.expanduser("~")+"/.local/share/applications/feren-ice-ssb-"+package.split("feren-ice-ssb-")[1]+".desktop"):
+                self.change_button_state("installed", False)
+            else:
+                self.change_button_state("uninstalled", False)
+                if self.sources_visible:
+                    self.app_source_dropdown.set_visible(True)
                 
     def on_installer_finished(self, package):
         if self.current_package == package:
@@ -744,8 +805,7 @@ class AppDetailsHeader(Gtk.Box):
         GLib.idle_add(self.__on_installer_finished, package)
             
     def __on_installer_finished(self, package):
-        #TODO: Make this work depending on the package type
-        self.btns_get_package_status("apt", package)
+        self.btns_get_package_status(package)
         self.app_mgmt_progress.set_fraction(0.0)
     
     def install_with_source_pressed(self, button):
@@ -755,17 +815,28 @@ class AppDetailsHeader(Gtk.Box):
     def install_pressed(self, button):
         #When you press 'Install'
         self.change_button_state("loading", False)
-        self.APTMgmt.install_package(self.current_package)
+        if self.current_package_type == "apt":
+            self.APTMgmt.install_package(self.current_package)
+        elif self.current_package_type == "ice":
+            tree_iter = self.app_source_dropdown.get_active_iter()
+            if tree_iter is not None:
+                model = self.app_source_dropdown.get_model()
+                active_text = model[tree_iter][0]
+                self.ICEMgmt.install(self.current_package, active_text)
     
     def update_pressed(self, button):
         #When you press 'Update'
         self.change_button_state("loading", False)
-        self.APTMgmt.upgrade_package(self.current_package)
+        if self.current_package_type == "apt":
+            self.APTMgmt.upgrade_package(self.current_package)
     
     def remove_pressed(self, button):
         #When you press 'Remove'
         self.change_button_state("loading", False)
-        self.APTMgmt.remove_package(self.current_package)
+        if self.current_package_type == "apt":
+            self.APTMgmt.remove_package(self.current_package)
+        elif self.current_package_type == "ice":
+            self.ICEMgmt.remove(self.current_package)
 
     def cancel_from_queue_pressed(self, button):
         #TODO: Make this work irregardless of package manager
@@ -774,7 +845,7 @@ class AppDetailsHeader(Gtk.Box):
                 if taskitem.startswith("apt:") and taskitem.endswith(":"+self.current_package):
                     classnetwork.TasksMgmt.currenttasks.remove(taskitem)
                     classnetwork.TasksMgmt.gui_refresh_tasks()
-                    self.btns_get_package_status("apt", self.current_package)
+                    self.btns_get_package_status(self.current_package)
 
 
 
@@ -904,11 +975,28 @@ class AppView(WebKit2.WebView):
             app.run_javascript('mkbutton("'+package+'")')
             
     def packagepagestuff(self):
+        classnetwork.AppDetailsHeader.app_source_dropdown.set_visible(False)
         packagetoview = app.current_page.split('packagepage.html?package=')[1]
         
+        #Update in-page items
+        if packagetoview.startswith("feren-ice-ssb-"):
+            app_description, app_author, app_bugreporturl, app_website, app_tos, app_privpol, app_category, app_image1, app_image2, app_image3 = classnetwork.JSONReader.getPackageSiteInfo(packagetoview.split("feren-ice-ssb-")[1], "ice")
+        else:
+            app_description, app_author, app_bugreporturl, app_website, app_tos, app_privpol, app_category, app_image1, app_image2, app_image3 = classnetwork.JSONReader.getPackageSiteInfo(packagetoview, classnetwork.JSONReader.availablesources[packagetoview]["order-of-importance"][0])
+        
         if packagetoview != self.current_package:
-            app_title, app_desc, app_iconurl = classnetwork.JSONReader.getPackageInfo(packagetoview)
-            classnetwork.AppDetailsHeader.set_app_details(app_title, app_desc)
+            if packagetoview.startswith("feren-ice-ssb-"):
+                app_title, app_desc, app_iconurl = classnetwork.JSONReader.getPackageInfo(packagetoview.split("feren-ice-ssb-")[1], "ice")
+                classnetwork.AppDetailsHeader.set_app_details(app_title, app_desc)
+                classnetwork.AppDetailsHeader.set_package_type("ice")
+
+            elif packagetoview == "debfile":
+                pass
+
+            else:
+                app_title, app_desc, app_iconurl = classnetwork.JSONReader.getPackageInfo(packagetoview, classnetwork.JSONReader.availablesources[packagetoview]["order-of-importance"][0])
+                classnetwork.AppDetailsHeader.set_app_details(app_title, app_desc)
+                classnetwork.AppDetailsHeader.set_package_type(classnetwork.JSONReader.availablesources[packagetoview]["order-of-importance"][0])
             
             templocation=classnetwork.GlobalVariables.storagetemplocation
             
@@ -924,16 +1012,15 @@ class AppView(WebKit2.WebView):
             
         #TODO: Replace this with code that detects source type and cts accordingly, instead of just APT
         btnsthread = Thread(target=classnetwork.AppDetailsHeader.btns_get_package_status,
-                            args=("apt", packagetoview))
+                            args=(packagetoview,))
         btnsthread.start()
             
-        #Update in-page items
-        app_description, app_author, app_bugreporturl, app_website, app_tos, app_category, app_image1, app_image2, app_image3 = classnetwork.JSONReader.getPackageSiteInfo(packagetoview)
         app.update_page('#description', 'html', app_description)
         app.update_page('#author', 'html', app_author)
         app.update_page('#bugreporturl', 'html', app_bugreporturl)
         app.update_page('#website', 'html', app_website)
         app.update_page('#tos', 'html', app_tos)
+        app.update_page('#privpol', 'html', app_privpol)
         app.update_page('#category', 'html', app_category)
         app.update_page('#image1', 'src', app_image1)
         app.update_page('#image2', 'src', app_image2)
@@ -1291,7 +1378,8 @@ class StoreWindow(object):
         self.w = Gtk.Window()
         self.w.set_position(Gtk.WindowPosition.CENTER)
         self.w.set_title("Store")
-        self.w.set_default_size(810, 640)
+        self.w.set_default_size(850, 640)
+        self.w.set_size_request(850, 540)
         #self.w.set_resizable(False)
 
         #This allows Store to be natively recognised as an application associated with its .desktop file
@@ -1603,6 +1691,23 @@ def desktop_files():
     Name =      _("Store")
     Comment =   _("Get applications for Feren OS")
 
+#Single instance Store
+#TODO: Move this to after arguments checks
+if not os.path.isfile("/tmp/feren-store-running-"+str(os.getuid())):
+    pidfile = open("/tmp/feren-store-running-"+str(os.getuid()), "w")
+    pidfile.write(str(os.getpid()))
+    pidfile.close()
+else:
+    pidfile = open("/tmp/feren-store-running-"+str(os.getuid()), "r")
+    lastpid = pidfile.read()
+    try:
+        os.kill(int(lastpid), 0)
+        print("The new Feren Store is already running.")
+        exit(0)
+    except OSError:
+        pidfile = open("/tmp/feren-store-running-"+str(os.getuid()), "w")
+        pidfile.write(str(os.getpid()))
+        pidfile.close()
 
 if __name__ == "__main__":
 

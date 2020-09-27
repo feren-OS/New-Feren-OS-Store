@@ -24,4 +24,3 @@
     "appstream": "firefox.desktop"
   }
 }
-This'll be for identifying different packages by one name later internally. The json should be used by the Store for both determining which packages should be used for which package manager (while keeping same packages of different sources in the same slot), and also for reading where packagepage.html should be on package-wise for AppStream URIs, etc.

@@ -46,7 +46,7 @@ class APTMgmt():
             print(progress)
 
     def on_transaction_error(self, apt_transaction, error_code, error_details):
-        print("ERROR", error_code, error_details)
+        print("ERROR", str([error_code, error_details]))
 
     def on_transaction_finished(self, apt_transaction, exit_state):
         print("DONE")
@@ -76,7 +76,7 @@ def apt_remove():
 
 #Rule of Python: [0] counts as an item in the length count.
 if len(sys.argv) != 3:
-    print("Incorrect number of arguments.")
+    print("ERROR ['incorrectargumentsnumber']")
     exit(1)
     
 aptmgmt.packages = sys.argv[2:]

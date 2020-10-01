@@ -27,7 +27,7 @@ class ICEMgmt():
         elif browser == "Google Chrome":
             browser2 = "google-chrome"
         elif browser == "Chromium":
-            browser2 = "chromium"
+            browser2 = "chromium-browser"
         elif browser == "Mozilla Firefox":
             browser2 = "firefox"
         elif browser == "Brave":

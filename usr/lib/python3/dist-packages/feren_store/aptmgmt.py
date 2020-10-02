@@ -174,32 +174,7 @@ class APTMgmt():
     def run_transaction(self, package, optype):
         self.changesinaction = True
 
-        master, slave = pty.openpty()
         command = ["/usr/bin/pkexec", "/usr/lib/feren-store-new/packagemanager/packagemgmt.py", "apt", optype, package]
-        proc = subprocess.Popen(command, bufsize=0, shell=False, stdout=slave, stderr=slave, close_fds=True)     
-        stdout = os.fdopen(master, 'r')
-
-        while proc.poll() is None:
-            output = stdout.readline()
-            if output != "":
-                if output.rstrip('\n') == "STOREDONE":
-                    self.on_transaction_finished(package)
-                    break
-                elif output.startswith("STORERRROR ["):
-                    self.on_error(output.rstrip('\n'), package)
-                    break
-                elif output.rstrip('\n') != "STOREDONE" and not output.startswith("STOREERROR [") and output.rstrip('\n') != "":
-                    self.on_transaction_progress(output.rstrip('\n'))
-            else:
-                break
-
-        #Eh, just in case.
-        os.close(slave)
-        os.close(master)
-
-        #Only way I found thus far to prevent it from becoming a Minecraft mob
-        proc.communicate()
-
-        #Only way I found thus far to prevent Store from staying in the background and eating the CPU
-        exit()
-            
+        
+        from feren_store import executecmd
+        executecmd.run_transaction(command, self.on_transaction_finished, self.on_error, self.on_transaction_progress, package)

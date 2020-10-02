@@ -204,7 +204,7 @@ class PackageTile(Gtk.Button):
     def __init__(self, packagename, packagetype):
         Gtk.Button.__init__(self)
 
-        app_title, app_desc, app_iconurl = classnetwork.JSONReader.getPackageInfo(packagename)
+        app_title, app_desc, app_iconurl = classnetwork.JSONReader.getPackageInfo(packagename, packagetype)
 
         label_name = Gtk.Label(app_title, xalign=0)
         label_name.get_style_context().add_class("14scale")
@@ -330,11 +330,8 @@ class TasksMgmt(object):
             if classnetwork.AppDetailsHeader.current_package == task.split('apt:inst:')[1]:
                 classnetwork.AppDetailsHeader.change_button_state("busy", False)
 
-            classnetwork.APTMgmt.apt_client.install_packages([task.split('apt:inst:')[1]],
-                                        reply_handler=classnetwork.APTMgmt.confirm_changes,
-                                        error_handler=classnetwork.APTMgmt.on_error) # dbus.DBusException
-            if classnetwork.AppDetailsHeader.current_package == task.split('apt:inst:')[1]:
-                classnetwork.AppDetailsHeader.change_button_state("busy", False)
+            classnetwork.APTMgmt.run_transaction(task.split('apt:inst:')[1], "install")
+
             #Since the do_task thing doesn't hold up code while it's doing it...
             while classnetwork.APTMgmt.changesinaction == False:
                 pass
@@ -346,11 +343,11 @@ class TasksMgmt(object):
             if classnetwork.AppDetailsHeader.current_package == task.split('apt:inst:')[1]:
                 classnetwork.AppDetailsHeader.btns_get_package_status(task.split('apt:inst:')[1])
         elif task.startswith("apt:upgr:"):
-            classnetwork.APTMgmt.apt_client.upgrade_packages([task.split('apt:upgr:')[1]],
-                                        reply_handler=classnetwork.APTMgmt.confirm_changes,
-                                        error_handler=classnetwork.APTMgmt.on_error) # dbus.DBusException
             if classnetwork.AppDetailsHeader.current_package == task.split('apt:upgr:')[1]:
                 classnetwork.AppDetailsHeader.change_button_state("busy", False)
+
+            classnetwork.APTMgmt.run_transaction(task.split('apt:upgr:')[1], "upgrade")
+
             #Since the do_task thing doesn't hold up code while it's doing it...
             while classnetwork.APTMgmt.changesinaction == False:
                 pass
@@ -362,11 +359,10 @@ class TasksMgmt(object):
             if classnetwork.AppDetailsHeader.current_package == task.split('apt:upgr:')[1]:
                 classnetwork.AppDetailsHeader.btns_get_package_status(task.split('apt:upgr:')[1])
         elif task.startswith("apt:rm:"):
-            classnetwork.APTMgmt.apt_client.remove_packages([task.split('apt:rm:')[1]],
-                                        reply_handler=classnetwork.APTMgmt.confirm_changes,
-                                        error_handler=classnetwork.APTMgmt.on_error) # dbus.DBusException
             if classnetwork.AppDetailsHeader.current_package == task.split('apt:rm:')[1]:
                 classnetwork.AppDetailsHeader.change_button_state("busy", False)
+
+            classnetwork.APTMgmt.run_transaction(task.split('apt:rm:')[1], "remove")
             #Since the do_task thing doesn't hold up code while it's doing it...
             while classnetwork.APTMgmt.changesinaction == False:
                 pass
@@ -971,8 +967,13 @@ class AppView(WebKit2.WebView):
 
     def _generate_apps_list(self, category):
         #TODO: Make it category-specific
+        for package in classnetwork.JSONReader.internalpkgnames:
+            app.run_javascript('mkbutton("'+category+package+'")')
+
+    def _generate_websites_list(self, category):
+        #TODO: Make it category-specific
         for package in classnetwork.JSONReader.icedata:
-            app.run_javascript('mkbutton("'+package+'")')
+            app.run_javascript('mkbutton("'+category+package+'")')
             
     def packagepagestuff(self):
         classnetwork.AppDetailsHeader.app_source_dropdown.set_visible(False)
@@ -985,6 +986,7 @@ class AppView(WebKit2.WebView):
             app_description, app_author, app_bugreporturl, app_website, app_tos, app_privpol, app_category, app_image1, app_image2, app_image3 = classnetwork.JSONReader.getPackageSiteInfo(packagetoview, classnetwork.JSONReader.availablesources[packagetoview]["order-of-importance"][0])
         
         if packagetoview != self.current_package:
+            print(packagetoview)
             if packagetoview.startswith("feren-ice-ssb-"):
                 app_title, app_desc, app_iconurl = classnetwork.JSONReader.getPackageInfo(packagetoview.split("feren-ice-ssb-")[1], "ice")
                 classnetwork.AppDetailsHeader.set_app_details(app_title, app_desc)
@@ -1100,6 +1102,11 @@ class AppView(WebKit2.WebView):
             classnetwork.StoreWindow.goapps_btn.set_visible(True)
             classnetwork.StoreWindow.gothemes_btn.set_visible(True)
             classnetwork.StoreWindow.gowebsites_btn.set_visible(True)
+            
+            if self.add_buttons == True:
+                applistthread = Thread(target=self._generate_apps_list,
+                                    args=("",))
+                applistthread.start()
             classnetwork.AppDetailsHeader.set_visible(False)
         elif current_page == 'themespage.html':
             classnetwork.StoreWindow.gothemes_btn.handler_block(classnetwork.StoreWindow.gothemes_handle_id)
@@ -1123,9 +1130,9 @@ class AppView(WebKit2.WebView):
             classnetwork.AppDetailsHeader.set_visible(False)
             
             if self.add_buttons == True:
-                applistthread = Thread(target=self._generate_apps_list,
-                                    args=("e",))
-                applistthread.start()
+                weblistthread = Thread(target=self._generate_websites_list,
+                                    args=("feren-ice-ssb-",))
+                weblistthread.start()
         elif current_page.startswith('packagepage.html'):
             classnetwork.StoreWindow.gohome_btn.set_visible(False)
             classnetwork.StoreWindow.goapps_btn.set_visible(False)
@@ -1642,6 +1649,10 @@ class StoreWindow(object):
         self.webkit._goto_page("statuspage")
 
     def close(self, p1 = None, p2 = None):
+        try:
+            os.file.remove(pidfile)
+        except:
+            pass
         Gtk.main_quit(p1, p2)
 
     def update_page(self, element, function, parm1=None, parm2=None):

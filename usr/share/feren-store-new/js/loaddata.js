@@ -34,7 +34,7 @@ function mkbutton(packagename) {
     newbutton.value = packagename;
 
     newbutton.addEventListener ("click", function() {
-        window.location.href = ("packagepage.html?package=feren-ice-ssb-"+packagename);
+        window.location.href = ("packagepage.html?package="+packagename);
     });
 
     document.body.appendChild(newbutton);

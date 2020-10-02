@@ -35,7 +35,7 @@ class ErrorDialog():
 
     ###Dialog to let users know of transaction fails.
 
-    def __init__(self, error, classnetwork, package):
+    def __init__(self, error, classnetwork, package, pkgtype):
         self.classnetwork = classnetwork
         
         self.w = Gtk.Window()
@@ -74,9 +74,9 @@ class ErrorDialog():
         first_string_box = Gtk.Box()
         first_string_box.pack_start(first_string, False, False, 0)
         if errorlist == ["", ""]:
-            second_string = Gtk.Label(label="Unfortunately something went wrong when managing "+package+".")
+            second_string = Gtk.Label(label="Unfortunately something went wrong when managing "+classnetwork.JSONReader.genericpkgdata[classnetwork.JSONReader.getInternalFromName(packagename, pkgtype)]["realname"]+".")
         else:
-            second_string = Gtk.Label(label="Unfortunately something went wrong when managing "+package+".\nThe error is as shown below:")
+            second_string = Gtk.Label(label="Unfortunately something went wrong when managing "+classnetwork.JSONReader.genericpkgdata[classnetwork.JSONReader.getInternalFromName(packagename, pkgtype)]["realname"]+".\nThe error is as shown below:")
         second_string_box = Gtk.Box()
         second_string_box.pack_start(second_string, False, False, 0)
         if errorlist != ["", ""]:
@@ -128,7 +128,7 @@ class ChangesConfirmDialog():
 
     ###Dialog to confirm the changes that would be required by a transaction.
 
-    def __init__(self, packagename, optype, classnetwork, packagesinstalled, packagesupgraded, packagesremoved, pkgmgmt):
+    def __init__(self, packagename, optype, classnetwork, packagesinstalled, packagesupgraded, packagesremoved, pkgmgmt, pkgtype):
         self.classnetwork = classnetwork
         self.packagename = packagename
         self.pkgmgmt = pkgmgmt
@@ -139,21 +139,21 @@ class ChangesConfirmDialog():
         for packagenm in packagesinstalled:
             if not packagenm == packagename:
                 try:
-                    test = classnetwork.JSONReader().availablesources[packagenm]["apt"]
+                    test = classnetwork.JSONReader().availablesources[packagenm][pkgtype]
                     packagesdisplayedinst.append(packagenm)
                 except:
                     pass
         for packagenm in packagesupgraded:
             if not packagenm == packagename:
                 try:
-                    test = classnetwork.JSONReader().availablesources[packagenm]["apt"]
+                    test = classnetwork.JSONReader().availablesources[packagenm][pkgtype]
                     packagesdisplayedupgr.append(packagenm)
                 except:
                     pass
         for packagenm in packagesremoved:
             if not packagenm == packagename:
                 try:
-                    test = classnetwork.JSONReader().availablesources[packagenm]["apt"]
+                    test = classnetwork.JSONReader().availablesources[packagenm][pkgtype]
                     packagesdisplayedrm.append(packagenm)
                 except:
                     pass
@@ -191,7 +191,7 @@ class ChangesConfirmDialog():
         mainwindow.set_spacing(4)
         self.w.add(mainwindow)
         
-        packagerealname = JSONReader().genericpkgdata[packagename]["realname"]
+        packagerealname = classnetwork.JSONReader.genericpkgdata[packagename]["realname"]
         
         if optype == "install":
             operationtext = "Install"
@@ -225,7 +225,7 @@ class ChangesConfirmDialog():
         self.changes_list_box.set_spacing(4)
         sw.add(self.changes_list_box)
         
-        self.tempdir = GlobalVariables().storagetemplocation
+        self.tempdir = classnetwork.GlobalVariables.storagetemplocation
         
         thread = Thread(target=self.confirm_window_populate,
                         args=(packagesdisplayedinst, packagesdisplayedupgr, packagesdisplayedrm, packagename))
@@ -353,7 +353,7 @@ class ChangesConfirmDialog():
         
         packagesdisplayedupgrbox = Gtk.VBox()
         if packagesdisplayedupgr:
-            for packagenm in packagesupgraded:
+            for packagenm in packagesdisplayedupgr:
                 try:
                     box_application_icontext = Gtk.Box()
                     box_application_namedesc = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
@@ -418,7 +418,7 @@ class ChangesConfirmDialog():
         
         packagesdisplayedrmbox = Gtk.VBox()
         if packagesdisplayedrm:
-            for packagenm in packagesremoved:
+            for packagenm in packagesdisplayedrm:
                 try:
                     box_application_icontext = Gtk.Box()
                     box_application_namedesc = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)

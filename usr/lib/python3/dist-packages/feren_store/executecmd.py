@@ -27,7 +27,6 @@ def run_transaction(command, ontransfinished, onerror, ontransprogress, package)
         output = stdout.readline()
         if output != "":
             if output.rstrip('\n') == "STOREDONE":
-                ontransfinished(package)
                 break
             elif output.startswith("STORERRROR ["):
                 onerror(output.rstrip('\n'), package)
@@ -36,6 +35,8 @@ def run_transaction(command, ontransfinished, onerror, ontransprogress, package)
                 ontransprogress(output.rstrip('\n'))
         else:
             break
+        
+    ontransfinished(package)
 
     #Eh, just in case.
     os.close(slave)

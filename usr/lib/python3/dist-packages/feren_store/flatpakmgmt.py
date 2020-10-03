@@ -20,44 +20,68 @@ import gi
 import pty
 from threading import Thread
 
-from gi.repository import GLib
+gi.require_version('Flatpak', '1.0')
+from gi.repository import GLib, Flatpak
 
 from feren_store.dialogs import ChangesConfirmDialog, ErrorDialog
 
 
-class APTChecks():
-    def checkinstalled(package):
-        #Hopefully apt_cache1 means apt_cache doesn't interfere in any way shape or form, though...
-        apt_cache1 = apt.Cache()
-        try:
-            pkginfo = apt_cache1[package]
-        except:
-            return(404)
-        apt_cache1.upgrade(True) # dist-upgrade
-
-        if (apt_cache1[pkginfo.name].is_installed and apt_cache1[pkginfo.name].marked_upgrade and apt_cache1[pkginfo.name].candidate.version != apt_cache1[pkginfo.name].installed.version):
-            return(3)
-        elif apt_cache1[pkginfo.name].is_installed:
-            return(1)
+class FlatpakChecks():
+    def checkinstalled(ref, userland):
+        if userland == False:
+            flatpakclassthing = Flatpak.Installation.new_system()
         else:
-            return(2)
+            flatpakclassthing = Flatpak.Installation.new_user()
+        flatpakremotes = flatpakclassthing.list_remotes()
+        all_refs = []
+        for remote_name in flatpakremotes:
+            try:
+                for i in flatpakclassthing.list_remote_refs_sync(remote_name.get_name(), None):
+                    if i not in all_refs:
+                        all_refs.append(i)
+            except:
+                pass
+        ref2 = ""
+        arch = Flatpak.get_default_arch()
+        for i in all_refs:
+                if i.get_name() == ref and i.get_arch() == arch:
+                    ref2 = i
+        
+        try:
+            iref = flatpakclassthing.get_installed_ref(ref2.get_kind(),
+                                            ref2.get_name(),
+                                            ref2.get_arch(),
+                                            ref2.get_branch(),
+                                            None)
 
-    def checkneedsrepo(package):
-        s = subprocess.run(["/usr/lib/feren-store-new/bash-tools/get-apt-dependencies", package], stdout=subprocess.PIPE).stdout.decode('utf-8')
-        dependencies = s.split()
-        stuffneeded = []
-        if "snapd" in dependencies and not os.path.isfile("/usr/bin/snap"):
-            stuffneeded.append("snap")
-        if "flatpak" in dependencies and not os.path.isfile("/usr/bin/flatpak"):
-            stuffneeded.append("flatpak")
-        #TODO: Add checking for known App Sources
+            if iref:
+                if ref2 in flatpakclassthing.list_installed_refs_for_update(None):
+                    return(3)
+                else:
+                    return(1)
+        except GLib.Error:
+            pass
+        except AttributeError: # bad/null ref
+            pass
+        return(2)
 
-        return stuffneeded
+    def checkneedsrepo(package, repositoryname, userland):
+        if userland == False:
+            flatpakclassthing = Flatpak.Installation.new_system()
+        else:
+            flatpakclassthing = Flatpak.Installation.new_user()
+        flatpakremotes = flatpakclassthing.list_remotes()
+        
+        for i in flatpakremotes:
+            if i.get_name() == repositoryname:
+                return []
+        return [i.get_name()]
 
 
-class APTMgmt():
+class FlatpakMgmt():
     def __init__(self, classnetwork):
         self.packagename = ""
+        self.userland = False
         self.classnetwork = classnetwork
         self.changesinaction = False
         
@@ -65,25 +89,12 @@ class APTMgmt():
         packagestoinstall = []
         packagestoupgrade = []
         packagestoremove = []
-        apt_cache = apt.Cache()
-        pkginfo = apt_cache[package]
-        if operationtype == "install":
-            apt_cache[package].mark_install(True)
-        elif operationtype == "upgrade":
-            apt_cache[package].mark_upgrade(True)
-        elif operationtype == "remove":
-            apt_cache[package].mark_delete(True)
-        for item in apt_cache:
-            if apt_cache[item.name].marked_install:
-                packagestoinstall.append(item.name)
-            elif apt_cache[item.name].marked_upgrade:
-                packagestoupgrade.append(item.name)
-            elif apt_cache[item.name].marked_delete:
-                packagestoremove.append(item.name)
+        #TODO: Make these be either predefined or get some Flatpak dependency evaluation in here
         return(packagestoinstall, packagestoupgrade, packagestoremove)
 
-    def install_package(self, packagename):
+    def install_package(self, packagename, userland):
         self.packagename = packagename
+        self.userland = userland
         thread = Thread(target=self._install_package,
                         args=())
         thread.daemon = True
@@ -95,11 +106,10 @@ class APTMgmt():
         GLib.idle_add(self.__install_package, packagesinstalled, packagesupgraded, packagesremoved)
         
     def __install_package(self, packagesinstalled, packagesupgraded, packagesremoved):
-        #TODO: Add advanced mode setting which makes the dialog show ALL of the installs/upgrades/removals/etc.
-        ChangesConfirmDialog(self.packagename, "install", self.classnetwork, packagesinstalled, packagesupgraded, packagesremoved, self, "apt")
+        ChangesConfirmDialog(self.packagename, "install", self.classnetwork, packagesinstalled, packagesupgraded, packagesremoved, self, "flatpak")
         
     def confirm_install_package(self, packagename):
-        self.classnetwork.TasksMgmt.add_task("apt:inst:"+packagename)
+        self.classnetwork.TasksMgmt.add_task("flatpak:inst:"+packagename)
         self.classnetwork.TasksMgmt.start_now()
 
     def upgrade_package(self, packagename):
@@ -115,10 +125,10 @@ class APTMgmt():
         GLib.idle_add(self.__upgrade_package, packagesinstalled, packagesupgraded, packagesremoved)
         
     def __upgrade_package(self, packagesinstalled, packagesupgraded, packagesremoved):
-        ChangesConfirmDialog(self.packagename, "upgrade", self.classnetwork, packagesinstalled, packagesupgraded, packagesremoved, self, "apt")
+        ChangesConfirmDialog(self.packagename, "upgrade", self.classnetwork, packagesinstalled, packagesupgraded, packagesremoved, self, "flatpak")
         
     def confirm_upgrade_package(self, packagename):
-        self.classnetwork.TasksMgmt.add_task("apt:upgr:"+packagename)
+        self.classnetwork.TasksMgmt.add_task("flatpak:upgr:"+packagename)
         self.classnetwork.TasksMgmt.start_now()
 
     def remove_package(self, packagename):
@@ -135,16 +145,16 @@ class APTMgmt():
         
     def __remove_package(self, packagesinstalled, packagesupgraded, packagesremoved):
         
-        ChangesConfirmDialog(self.packagename, "remove", self.classnetwork, packagesinstalled, packagesupgraded, packagesremoved, self, "apt")
+        ChangesConfirmDialog(self.packagename, "remove", self.classnetwork, packagesinstalled, packagesupgraded, packagesremoved, self, "flatpak")
         
     def confirm_remove_package(self, packagename):
-        self.classnetwork.TasksMgmt.add_task("apt:rm:"+packagename)
+        self.classnetwork.TasksMgmt.add_task("flatpak:rm:"+packagename)
         self.classnetwork.TasksMgmt.start_now()
 
     def on_error(self, error, package):
         self.classnetwork.AppDetailsHeader.on_installer_finished(package)
         self.changesinaction = False
-        ErrorDialog(error, self.classnetwork, package, "apt")
+        ErrorDialog(error, self.classnetwork, package, "flatpak")
     
     def on_transaction_progress(self, progress):
         try:
@@ -159,7 +169,7 @@ class APTMgmt():
     def run_transaction(self, package, optype):
         self.changesinaction = True
 
-        command = ["/usr/bin/pkexec", "/usr/lib/feren-store-new/packagemanager/packagemgmt.py", "apt", optype, package]
+        command = ["/usr/bin/pkexec", "/usr/lib/feren-store-new/packagemanager/packagemgmt.py", "flatpak", optype, package]
         
         from feren_store import executecmd
         executecmd.run_transaction(command, self.on_transaction_finished, self.on_error, self.on_transaction_progress, package)

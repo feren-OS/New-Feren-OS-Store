@@ -40,15 +40,6 @@ if sys.argv[1] == "snap":
             #remove2_sync(flags, name, progress_callback, progress_callback_data, cancellable)
 
 
-        def is_installed(self, snapname):
-            try:
-                snapinfo = self.client.get_snap_sync(snapname)
-            except Exception as e:
-                return False
-            else:
-                return True
-
-
 #Flatpak Class
 if sys.argv[1] == "flatpak":
     #######################################################################################
@@ -502,9 +493,6 @@ if sys.argv[1] == "snap":
             print("DONE")
         else:
             print("ERROR")
-        exit()
-    elif sys.argv[2] == "isinstalled":
-        print(snapmgmt.is_installed(sys.argv[3]))
         exit()
 
 elif sys.argv[1] == "flatpak":

@@ -449,6 +449,8 @@ class TasksMgmt(object):
         
         classnetwork.AppDetailsHeader.app_mgmt_progress.set_fraction(0.0)
         classnetwork.AppDetailsHeader.switch_source(classnetwork.AppDetailsHeader.current_package, classnetwork.AppDetailsHeader.current_package_type, False)
+        if classnetwork.AppDetailsHeader.current_package.startswith("feren-ice-ssb-"):
+            classnetwork.AppDetailsHeader.get_sources(packagetoview) #Refresh browsers every time
         
     def do_tasks(self):
         self.inaction = True
@@ -652,7 +654,7 @@ class AppDetailsHeader(Gtk.Box):
     def get_package_type(self):
         return self.current_package_type
     
-    def get_sources(self, jsondata, package):
+    def get_sources(self, package):
         iface_list_store = Gtk.ListStore(GObject.TYPE_STRING)
         amount_of_sources = 0
 
@@ -1125,7 +1127,7 @@ class AppView(WebKit2.WebView):
             appiconthread.start()
             
             #Update the sources combobox
-            classnetwork.AppDetailsHeader.get_sources(classnetwork.JSONReader.availablesources, packagetoview)
+            classnetwork.AppDetailsHeader.get_sources(packagetoview)
 
     def _push_config(self):
         # TODO: push notification should be connected to angularjs and use a

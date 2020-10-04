@@ -1,4 +1,5 @@
-#!/usr/bin/python3
+#!/usr/bin/python3 -u
+#THE -u ON THERE MAKES THE OUTPUT COME OUT ON THE FLY. DO NOT REMOVE IT.
 
 import sys
 import gi

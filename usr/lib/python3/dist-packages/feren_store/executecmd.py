@@ -13,35 +13,27 @@
 # details.
 
 import os
-import subprocess
-import pty
+from subprocess import Popen, PIPE, STDOUT
 
 
 def run_transaction(command, ontransfinished, onerror, ontransprogress, package):
 
-    master, slave = pty.openpty()
-    proc = subprocess.Popen(command, bufsize=0, shell=False, stdout=slave, stderr=slave, close_fds=True)     
-    stdout = os.fdopen(master, 'r')
+    proc = Popen(command, bufsize=0, stdout=PIPE, stderr=STDOUT, close_fds=True)
+    
+    donothing = False
 
-    while proc.poll() is None:
-        output = stdout.readline()
-        if output != "":
+    for line in iter(proc.stdout.readline, b''):
+        if donothing == False:
+            output = line.decode("utf-8")
             if output.rstrip('\n') == "STOREDONE":
-                break
+                donothing = True
             elif output.startswith("STORERRROR ["):
                 onerror(output.rstrip('\n'), package)
-                break
+                donothing = True
             elif output.rstrip('\n') != "STOREDONE" and not output.startswith("STOREERROR [") and output.rstrip('\n') != "":
                 ontransprogress(output.rstrip('\n'))
-        else:
-            break
     
     ontransfinished(package)
 
-    stdout.close()
-    proc.communicate()
-
-    #Eh, just in case.
-    os.close(slave)
-
-    #TODO: Figure out WTF is keeping this running thus stopping the application from quitting
+    proc.stdout.close()
+    proc.wait()

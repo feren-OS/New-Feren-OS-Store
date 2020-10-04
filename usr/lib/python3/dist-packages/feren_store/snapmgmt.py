@@ -101,7 +101,7 @@ class SnapMgmt():
     def run_transaction(self, package, optype):
         self.changesinaction = True
 
-        command = ["/usr/bin/pkexec", "/usr/lib/feren-store-new/packagemanager/packagemgmt.py", "snap", optype, package]
+        command = ["/usr/bin/pkexec", "/usr/lib/feren-store-new/packagemanager/packagemgmt.sh", "snap", optype, package]
         
         from feren_store import executecmd
         executecmd.run_transaction(command, self.on_transaction_finished, self.on_error, self.on_transaction_progress, package)

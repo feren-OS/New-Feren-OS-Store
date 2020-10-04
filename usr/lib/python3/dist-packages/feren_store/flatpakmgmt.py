@@ -171,7 +171,7 @@ class FlatpakMgmt():
     def run_transaction(self, package, optype):
         self.changesinaction = True
 
-        command = ["/usr/bin/pkexec", "/usr/lib/feren-store-new/packagemanager/packagemgmt.py", "flatpak", optype, package]
+        command = ["/usr/bin/pkexec", "/usr/lib/feren-store-new/packagemanager/packagemgmt.sh", "flatpak", optype, package]
         
         from feren_store import executecmd
         executecmd.run_transaction(command, self.on_transaction_finished, self.on_error, self.on_transaction_progress, package)

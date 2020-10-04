@@ -14,18 +14,18 @@ https://github.com/feren-OS/Bug-Reporting-Center/issues/128#issuecomment-6514180
 
 Ideas I want to implement into this application:
 
-- [ ] APT support
+- [x] APT support
 - [ ] DEB support
-- [ ] Flatpak support
-- [ ] Snap support
-- [ ] ICE SSBs Support
+- [x] Flatpak support
+- [x] Snap support
+- [x] ICE SSBs Support
 - [ ] Add custom messages to command-not-found
 - [ ] Add FYI dialog when opening DEBs for packages already in the Store
 - [ ] Support for KDE Store
 - [x] Separate Games and Themes sections
 - [ ] Updates section in Tasks/Installed
 - [ ] Notifications for successful installs, updates now being available, installing system-wide automatic updates, etc.
-- [ ] Tasks management for queuing multiple install/remove/update/etc tasks at once
+- [x] Tasks management for queuing multiple install/remove/update/etc tasks at once
 - [ ] Pre-defined application lists on the Home page for different topics
 - [ ] Settings: Allow toggling of automatic updates
 - [ ] Settings: Allow toggling and management of application sources

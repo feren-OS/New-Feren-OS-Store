@@ -12,7 +12,7 @@
 # details.
 
 import subprocess
-
+import time
 
 class ICEMgmt():
     def __init__(self, classnetwork):
@@ -52,5 +52,6 @@ class ICEMgmt():
         self.on_transaction_finished()
 
     def on_transaction_finished(self):
+        time.sleep(0.2)
         self.changesinaction = False
-        self.classnetwork.AppDetailsHeader.on_installer_finished(self.packagename)
+        self.classnetwork.AppDetailsHeader.switch_source(self.classnetwork.AppDetailsHeader.current_package, self.classnetwork.AppDetailsHeader.current_package_type, False)

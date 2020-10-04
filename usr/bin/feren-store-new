@@ -52,9 +52,15 @@ from os.path import expanduser
 
 from feren_store.aptmgmt import APTMgmt, APTChecks
 from feren_store.icemgmt import ICEMgmt
-#TODO: Make a means for these modules to be optional and try to import them at any time once their backends are available
-from feren_store.snapmgmt import SnapMgmt, SnapChecks
-from feren_store.flatpakmgmt import FlatpakMgmt, FlatpakChecks
+
+global snapmgmtimported
+global flatpakmgmtimported
+snapmgmtimported = False
+flatpakmgmtimported = False
+global SnapMgmt
+global SnapChecks
+global FlatpakMgmt
+global FlatpakChecks
 
 import apt
 
@@ -115,15 +121,15 @@ class JSONReader():
         translatedpackagename = self.getNameFromInternal(packagename, pkgtype)
         try:
             if pkgtype == "apt":
-                return self.genericpkgdata[packagename]["description"], self.aptdata[translatedpackagename]["author"], self.aptdata[translatedpackagename]["bugreporturl"], self.genericpkgdata[packagename]["website"], self.aptdata[translatedpackagename]["tos"], self.aptdata[translatedpackagename]["privpol"], self.genericpkgdata[packagename]["category"], self.genericpkgdata[packagename]["image1"], self.genericpkgdata[packagename]["image2"], self.genericpkgdata[packagename]["image3"]
+                return self.genericpkgdata[packagename]["description"], self.aptdata[translatedpackagename]["author"], self.aptdata[translatedpackagename]["bugreporturl"], self.genericpkgdata[packagename]["website"], self.genericpkgdata[packagename]["donation"], self.aptdata[translatedpackagename]["tos"], self.aptdata[translatedpackagename]["privpol"], self.genericpkgdata[packagename]["category"], self.genericpkgdata[packagename]["image1"], self.genericpkgdata[packagename]["image2"], self.genericpkgdata[packagename]["image3"]
             elif pkgtype == "snap":
-                return self.genericpkgdata[packagename]["description"], self.snapdata[translatedpackagename]["author"], self.snapdata[translatedpackagename]["bugreporturl"], self.genericpkgdata[packagename]["website"], self.snapdata[translatedpackagename]["tos"], self.snapdata[translatedpackagename]["privpol"], self.genericpkgdata[packagename]["category"], self.genericpkgdata[packagename]["image1"], self.genericpkgdata[packagename]["image2"], self.genericpkgdata[packagename]["image3"]
+                return self.genericpkgdata[packagename]["description"], self.snapdata[translatedpackagename]["author"], self.snapdata[translatedpackagename]["bugreporturl"], self.genericpkgdata[packagename]["website"], self.genericpkgdata[packagename]["website"], self.snapdata[translatedpackagename]["tos"], self.snapdata[translatedpackagename]["privpol"], self.genericpkgdata[packagename]["category"], self.genericpkgdata[packagename]["image1"], self.genericpkgdata[packagename]["image2"], self.genericpkgdata[packagename]["image3"]
             elif pkgtype == "flatpak":
-                return self.genericpkgdata[packagename]["description"], self.flatpakdata[translatedpackagename]["author"], self.flatpakdata[translatedpackagename]["bugreporturl"], self.genericpkgdata[packagename]["website"], self.flatpakdata[translatedpackagename]["tos"], self.flatpakdata[translatedpackagename]["privpol"], self.genericpkgdata[packagename]["category"], self.genericpkgdata[packagename]["image1"], self.genericpkgdata[packagename]["image2"], self.genericpkgdata[packagename]["image3"]
+                return self.genericpkgdata[packagename]["description"], self.flatpakdata[translatedpackagename]["author"], self.flatpakdata[translatedpackagename]["bugreporturl"], self.genericpkgdata[packagename]["website"], self.genericpkgdata[packagename]["website"], self.flatpakdata[translatedpackagename]["tos"], self.flatpakdata[translatedpackagename]["privpol"], self.genericpkgdata[packagename]["category"], self.genericpkgdata[packagename]["image1"], self.genericpkgdata[packagename]["image2"], self.genericpkgdata[packagename]["image3"]
             elif pkgtype == "ice":
-                return self.icedata[packagename]["description"], None, None, self.icedata[packagename]["website"], None, None, self.icedata[packagename]["category"], self.icedata[packagename]["image1"], self.icedata[packagename]["image2"], self.icedata[packagename]["image3"]
+                return self.icedata[packagename]["description"], None, None, self.icedata[packagename]["website"], None, None, None, self.icedata[packagename]["category"], self.icedata[packagename]["image1"], self.icedata[packagename]["image2"], self.icedata[packagename]["image3"]
         except KeyError:
-            return None, None, None, None, None, None, None, None, None, None
+            return None, None, None, None, None, None, None, None, None, None, None
         
 ####Source Names translator
 class ApplicationSourceTranslator():
@@ -354,6 +360,12 @@ class TasksMgmt(object):
 
             self.currenttasks.remove(task)
             self.currenttask = ""
+
+            #Import the Snap and Flatpak modules (or make them unimported) depending on the state of snapd and flatpak
+            if classnetwork.JSONReader.getNameFromInternal(task.split('apt:inst:')[1], "apt") == "snapd":
+                classnetwork.import_snap()
+            if classnetwork.JSONReader.getNameFromInternal(task.split('apt:inst:')[1], "apt") == "flatpak":
+                classnetwork.import_flatpak()
         elif task.startswith("apt:upgr:"):
             while classnetwork.APTMgmt.changesinaction == True:
                 pass
@@ -370,6 +382,12 @@ class TasksMgmt(object):
             
             self.currenttasks.remove(task)
             self.currenttask = ""
+
+            #Import the Snap and Flatpak modules (or make them unimported) depending on the state of snapd and flatpak
+            if classnetwork.JSONReader.getNameFromInternal(task.split('apt:rm:')[1], "apt") == "snapd":
+                classnetwork.import_snap()
+            if classnetwork.JSONReader.getNameFromInternal(task.split('apt:rm:')[1], "apt") == "flatpak":
+                classnetwork.import_flatpak()
         elif task.startswith("flatpak:inst:"):
             while classnetwork.FlatpakMgmt.changesinaction == True:
                 pass
@@ -431,7 +449,6 @@ class TasksMgmt(object):
         
         classnetwork.AppDetailsHeader.app_mgmt_progress.set_fraction(0.0)
         classnetwork.AppDetailsHeader.switch_source(classnetwork.AppDetailsHeader.current_package, classnetwork.AppDetailsHeader.current_package_type, False)
-        
         
     def do_tasks(self):
         self.inaction = True
@@ -578,10 +595,6 @@ class AppDetailsHeader(Gtk.Box):
         #Initialize Management
         self.APTMgmt = APTMgmt(classnetwork)
         classnetwork.APTMgmt = self.APTMgmt
-        self.SnapMgmt = SnapMgmt(classnetwork)
-        classnetwork.SnapMgmt = self.SnapMgmt
-        self.FlatpakMgmt = FlatpakMgmt(classnetwork)
-        classnetwork.FlatpakMgmt = self.FlatpakMgmt
         self.ICEMgmt = ICEMgmt(classnetwork)
         classnetwork.ICEMgmt = self.ICEMgmt
 
@@ -778,6 +791,8 @@ class AppDetailsHeader(Gtk.Box):
         GLib.idle_add(self.__switch_source, package, packagetype, autosourceswitch)
     
     def __switch_source(self, package, packagetype, autosourceswitch=True):
+        if self.current_package == "":
+            return #Don't do anything if we're not currently in the package view area
         print("Switch Source:", packagetype)
         # Don't refresh the source details, etc if we aren't looking at the package - it'll mess up the GUI otherwise as if this was ran for X package while viewing Y package it'd change some of the details shown for Y package to ones for X package on that source
         if self.current_package != package:
@@ -827,12 +842,15 @@ class AppDetailsHeader(Gtk.Box):
             elif classnetwork.TasksMgmt.currenttask.startswith("snap:") and classnetwork.TasksMgmt.currenttask.endswith(":"+package):
                 self.change_button_state("busy", False)
                 return
-            ifinstalled = SnapChecks.checkinstalled(mgmtpkgname)
-            if self.current_package == package:
-                if ifinstalled == 1:
-                    self.change_button_state("installed", False)
-                else:
-                    self.change_button_state("uninstalled", False)
+            if classnetwork.snapmgmtimported == True:
+                ifinstalled = classnetwork.SnapChecks.checkinstalled(mgmtpkgname)
+                if self.current_package == package:
+                    if ifinstalled == 1:
+                        self.change_button_state("installed", False)
+                    else:
+                        self.change_button_state("uninstalled", False)
+            else:
+                self.change_button_state("sourcemissing", False)
         
         elif self.current_package_type == "flatpak":
             if ("flatpak:inst:"+package in classnetwork.TasksMgmt.currenttasks or "flatpak:upgr:"+package in classnetwork.TasksMgmt.currenttasks or "flatpak:rm:"+package in classnetwork.TasksMgmt.currenttasks) and not (classnetwork.TasksMgmt.currenttask.startswith("flatpak:") and classnetwork.TasksMgmt.currenttask.endswith(":"+package)):
@@ -841,17 +859,20 @@ class AppDetailsHeader(Gtk.Box):
             elif classnetwork.TasksMgmt.currenttask.startswith("flatpak:") and classnetwork.TasksMgmt.currenttask.endswith(":"+package):
                 self.change_button_state("busy", False)
                 return
-            ifinstalled = FlatpakChecks.checkinstalled(mgmtpkgname, False) #TODO: Add userland Flatpak support (the 'False' = System-wide)
-            if self.current_package == package:
-                if ifinstalled == 1:
-                    self.change_button_state("installed", False)
-                elif ifinstalled == 3:
-                    self.change_button_state("updatable", False)
-                else:
-                    if FlatpakChecks.checkneedsrepo(mgmtpkgname, classnetwork.JSONReader.availablesources[package]["flatpak"].split("flatpak-")[1], False) != []:
-                        self.change_button_state("sourcemissing", False)
+            if classnetwork.flatpakmgmtimported == True:
+                ifinstalled = classnetwork.FlatpakChecks.checkinstalled(mgmtpkgname, False) #TODO: Add userland Flatpak support (the 'False' = System-wide)
+                if self.current_package == package:
+                    if ifinstalled == 1:
+                        self.change_button_state("installed", False)
+                    elif ifinstalled == 3:
+                        self.change_button_state("updatable", False)
                     else:
-                        self.change_button_state("uninstalled", False)
+                        if classnetwork.FlatpakChecks.checkneedsrepo(mgmtpkgname, classnetwork.JSONReader.availablesources[package]["flatpak"].split("flatpak-")[1], False) != []:
+                            self.change_button_state("sourcemissing", False)
+                        else:
+                            self.change_button_state("uninstalled", False)
+            else:
+                self.change_button_state("sourcemissing", False)
 
         elif self.current_package_type == "ice":
             self.app_source_dropdown.set_visible(False)
@@ -888,9 +909,9 @@ class AppDetailsHeader(Gtk.Box):
         if self.current_package_type == "apt":
             self.APTMgmt.install_package(self.current_package)
         elif self.current_package_type == "snap":
-            self.SnapMgmt.install_package(self.current_package)
+            classnetwork.SnapMgmt.install_package(self.current_package)
         elif self.current_package_type == "flatpak":
-            self.FlatpakMgmt.install_package(self.current_package, False)
+            classnetwork.FlatpakMgmt.install_package(self.current_package, False)
         elif self.current_package_type == "ice":
             tree_iter = self.app_source_dropdown.get_active_iter()
             if tree_iter is not None:
@@ -904,7 +925,7 @@ class AppDetailsHeader(Gtk.Box):
         if self.current_package_type == "apt":
             self.APTMgmt.upgrade_package(self.current_package)
         elif self.current_package_type == "flatpak":
-            self.FlatpakMgmt.upgrade_package(self.current_package, False)
+            classnetwork.FlatpakMgmt.upgrade_package(self.current_package, False)
     
     def remove_pressed(self, button):
         #When you press 'Remove'
@@ -912,9 +933,9 @@ class AppDetailsHeader(Gtk.Box):
         if self.current_package_type == "apt":
             self.APTMgmt.remove_package(self.current_package)
         elif self.current_package_type == "snap":
-            self.SnapMgmt.remove_package(self.current_package)
+            classnetwork.SnapMgmt.remove_package(self.current_package)
         elif self.current_package_type == "flatpak":
-            self.FlatpakMgmt.remove_package(self.current_package, False)
+            classnetwork.FlatpakMgmt.remove_package(self.current_package, False)
         elif self.current_package_type == "ice":
             self.ICEMgmt.remove(self.current_package)
 
@@ -1062,14 +1083,15 @@ class AppView(WebKit2.WebView):
     def update_insite_information(self, packagename, packagetype):
         #Update in-page items
         if packagename.startswith("feren-ice-ssb-"):
-            app_description, app_author, app_bugreporturl, app_website, app_tos, app_privpol, app_category, app_image1, app_image2, app_image3 = classnetwork.JSONReader.getPackageSiteInfo(packagename.split("feren-ice-ssb-")[1], "ice")
+            app_description, app_author, app_bugreporturl, app_website, app_donation, app_tos, app_privpol, app_category, app_image1, app_image2, app_image3 = classnetwork.JSONReader.getPackageSiteInfo(packagename.split("feren-ice-ssb-")[1], "ice")
         else:
-            app_description, app_author, app_bugreporturl, app_website, app_tos, app_privpol, app_category, app_image1, app_image2, app_image3 = classnetwork.JSONReader.getPackageSiteInfo(packagename, packagetype)
+            app_description, app_author, app_bugreporturl, app_website, app_donation, app_tos, app_privpol, app_category, app_image1, app_image2, app_image3 = classnetwork.JSONReader.getPackageSiteInfo(packagename, packagetype)
         
         app.update_page('#description', 'html', app_description)
         app.update_page('#author', 'html', app_author)
         app.update_page('#bugreporturl', 'html', app_bugreporturl)
         app.update_page('#website', 'html', app_website)
+        app.update_page('#donation', 'html', app_donation)
         app.update_page('#tos', 'html', app_tos)
         app.update_page('#privpol', 'html', app_privpol)
         app.update_page('#category', 'html', app_category)
@@ -1221,6 +1243,11 @@ class AppView(WebKit2.WebView):
                                 args=())
             remainingstuffthread.start()
 
+        if not current_page.startswith('packagepage.html'):
+            self.current_package = ""
+            classnetwork.AppDetailsHeader.current_package = ""
+            classnetwork.AppDetailsHeader.current_package_type = ""
+
         #if current_page == 'home':
             #systemstate.first_run = False
             
@@ -1354,6 +1381,8 @@ class Notifier(object):
 ####Class Network - use this at any time to connect any bit of code to any class (that has an init) in this code
 class ClassNetwork():
     def __init__(self):
+        self.snapmgmtimported = False
+        self.flatpakmgmtimported = False
         self.JSONReader = JSONReader()
         self.GlobalVariables = GlobalVariables()
         self.TasksMgmt = TasksMgmt()
@@ -1366,8 +1395,41 @@ class ClassNetwork():
         self.StoreWindow = None
         self.APTMgmt = None
         self.SnapMgmt = None
+        self.SnapChecks = None
         self.FlatpakMgmt = None
+        self.FlatpakChecks = None
         self.ICEMgmt = None
+        self.import_snap()
+        self.import_flatpak()
+
+    def import_snap(self):
+        if not os.path.isfile("/usr/bin/snap"): #Abort import if Snap itself isn't installed
+            self.snapmgmtimported = False
+            return
+        if self.snapmgmtimported == True:
+            #If it's imported, don't bother reimporting it
+            return
+        try:
+            from feren_store.snapmgmt import SnapMgmt, SnapChecks
+            self.SnapMgmt = SnapMgmt(self)
+            self.SnapChecks = SnapChecks
+            self.snapmgmtimported = True
+        except:
+            self.snapmgmtimported = False
+    def import_flatpak(self):
+        if not os.path.isfile("/usr/bin/flatpak"): #Abort import if Flatpak itself isn't installed
+            self.flatpakmgmtimported = False
+            return
+        if self.flatpakmgmtimported == True:
+            #If it's imported, don't bother reimporting it
+            return
+        try:
+            from feren_store.flatpakmgmt import FlatpakMgmt, FlatpakChecks
+            self.FlatpakMgmt = FlatpakMgmt(self)
+            self.FlatpakChecks = FlatpakChecks
+            self.flatpakmgmtimported = True
+        except:
+            self.flatpakmgmtimported = False
 
 
 ####DEBs Checker Window

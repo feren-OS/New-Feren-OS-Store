@@ -35,14 +35,13 @@ def run_transaction(command, ontransfinished, onerror, ontransprogress, package)
                 ontransprogress(output.rstrip('\n'))
         else:
             break
-        
+    
     ontransfinished(package)
+
+    stdout.close()
+    proc.communicate()
 
     #Eh, just in case.
     os.close(slave)
-    os.close(master)
-    
-    proc.communicate()
 
-    #Only way I found thus far to prevent Store from staying in the background and eating the CPU
-    exit()
+    #TODO: Figure out WTF is keeping this running thus stopping the application from quitting

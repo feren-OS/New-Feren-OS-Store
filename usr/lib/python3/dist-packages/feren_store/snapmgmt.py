@@ -42,17 +42,19 @@ class SnapMgmt():
         self.changesinaction = False
         
     def check_real_changes(self, package, operationtype):
-        : #currently not needed
+        pass #currently not needed
 
     def install_package(self, packagename):
         self.packagename = packagename
         self.classnetwork.TasksMgmt.add_task("snap:inst:"+packagename)
+        self.classnetwork.TasksMgmt.start_now()
 
     #Snaps have automatic updates, so... don't think we really need to bother with having a GUI for managing updates when they're forced on automatic. If anyone wants to add one in, using the GUI for other package types' updates, feel free.
 
     def remove_package(self, packagename):
         self.packagename = packagename
         self.classnetwork.TasksMgmt.add_task("snap:rm:"+packagename)
+        self.classnetwork.TasksMgmt.start_now()
 
     def on_error(self, error, package):
         self.classnetwork.AppDetailsHeader.on_installer_finished(package)

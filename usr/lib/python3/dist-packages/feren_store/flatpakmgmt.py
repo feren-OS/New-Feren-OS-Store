@@ -112,8 +112,9 @@ class FlatpakMgmt():
         self.classnetwork.TasksMgmt.add_task("flatpak:inst:"+packagename)
         self.classnetwork.TasksMgmt.start_now()
 
-    def upgrade_package(self, packagename):
+    def upgrade_package(self, packagename, userland):
         self.packagename = packagename
+        self.userland = userland
         thread = Thread(target=self._upgrade_package,
                         args=())
         thread.daemon = True
@@ -131,8 +132,9 @@ class FlatpakMgmt():
         self.classnetwork.TasksMgmt.add_task("flatpak:upgr:"+packagename)
         self.classnetwork.TasksMgmt.start_now()
 
-    def remove_package(self, packagename):
+    def remove_package(self, packagename, userland):
         self.packagename = packagename
+        self.userland = userland
         thread = Thread(target=self._remove_package,
                         args=())
         thread.daemon = True

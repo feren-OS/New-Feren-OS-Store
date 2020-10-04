@@ -87,7 +87,7 @@ if sys.argv[1] == "flatpak":
             else:
                 self.flatpakclassthing = Flatpak.Installation.new_user()
                 self.flatpakclassthingalt = Flatpak.Installation.new_system()
-            self.transaction = Flatpak.Transaction.new_for_installation(flatpakclassthing)
+            self.transaction = Flatpak.Transaction.new_for_installation(self.flatpakclassthing)
 
             self.flatpakremotes = self.flatpakclassthing.list_remotes()
             if self.flatpakclassthing != self.flatpakclassthingalt:
@@ -110,16 +110,16 @@ if sys.argv[1] == "flatpak":
                         pass
 
         def progress_flatpak_cb(self, status, progress, estimating, data=None):
-            package_chunk_size = 1.0 / item_count
+            package_chunk_size = 1.0 / self.item_count
             partial_chunk = (progress / 100.0) * package_chunk_size
 
-            print(math.floor(((current_count * package_chunk_size) + partial_chunk) * 100.0))
+            print(math.floor(((self.current_count * package_chunk_size) + partial_chunk) * 100.0))
 
         def on_flatpak_error(self, error_details):
-            print("ERROR", [error_details])
+            print("STOREERROR", str([error_details]))
 
         def on_flatpak_finished(self):
-            print("DONE")
+            print("STOREDONE")
 
         def is_flatpak_installed(self, ref):
             try:
@@ -297,18 +297,18 @@ if sys.argv[1] == "flatpak":
 
 
         def get_ref_from_name(self, flatpakname):
-            for i in all_refs:
-                if i.get_name() == flatpakname and i.get_arch() == arch:
+            for i in self.all_refs:
+                if i.get_name() == flatpakname and i.get_arch() == self.arch:
                     return i
 
 
         def flatpak_transaction_commit(self):
             #Count things to do
-            for remote in taskstbinstalled:
+            for remote in self.taskstbinstalled:
                 self.item_count += len(self.taskstbinstalled[remote])
-            for remote in taskstbupdated:
+            for remote in self.taskstbupdated:
                 self.item_count += len(self.taskstbupdated[remote])
-            for remote in taskstbremoved:
+            for remote in self.taskstbremoved:
                 self.item_count += len(self.taskstbremoved[remote])
 
             for remote in self.taskstbinstalled:
@@ -325,7 +325,7 @@ if sys.argv[1] == "flatpak":
                                             None)
                     except GLib.Error as e:
                         if e.code != Gio.IOErrorEnum.CANCELLED:
-                            print("ERROR", ref2.format_ref(), e.message)
+                            print("STOREERROR", str([e.message]))
                             return
 
                     self.current_count += 1
@@ -338,7 +338,7 @@ if sys.argv[1] == "flatpak":
                         ref2 = self.get_ref_from_name(ref)
                         #Fake 90% because Flatpak doesn't actually mark progress when removing
                         print(math.floor(((self.current_count * (1.0 / self.item_count)) + (0.9 / self.item_count)) * 100.0))
-                        flatpakclassthing.uninstall(ref2.get_kind(),
+                        self.flatpakclassthing.uninstall(ref2.get_kind(),
                                             ref2.get_name(),
                                             ref2.get_arch(),
                                             ref2.get_branch(),
@@ -347,7 +347,7 @@ if sys.argv[1] == "flatpak":
                                             None)
                     except GLib.Error as e:
                         if e.code != Gio.IOErrorEnum.CANCELLED:
-                            print("ERROR", ref2.format_ref(), e.message)
+                            print("STOREERROR", str([e.message]))
                             return
 
                     self.current_count += 1
@@ -358,7 +358,7 @@ if sys.argv[1] == "flatpak":
                 for ref in self.taskstbupdated[remotes]:
                     try:
                         ref2 = self.get_ref_from_name(ref)
-                        flatpakclassthing.update(Flatpak.UpdateFlags.NONE,
+                        self.flatpakclassthing.update(Flatpak.UpdateFlags.NONE,
                                             ref2.get_remote_name(),
                                             ref2.get_kind(),
                                             ref2.get_name(),
@@ -369,14 +369,14 @@ if sys.argv[1] == "flatpak":
                                             None)
                     except GLib.Error as e:
                         if e.code != Gio.IOErrorEnum.CANCELLED:
-                            print("ERROR", ref2.format_ref(), e.message)
+                            print("STOREERROR", str([e.message]))
                             return
 
                     self.current_count += 1
                     
                     print(math.floor(((self.current_count * (1.0/self.item_count)) * 100.0)))
 
-            print("DONE")
+            print("STOREDONE")
 
 
         def flatpak_install(self, remote):
@@ -484,15 +484,15 @@ if sys.argv[1] == "snap":
     snapmgmt = SnapMgmt()
     if sys.argv[2] == "install":
         if snapmgmt.snap_install(sys.argv[3]):
-            print("DONE")
+            print("STOREDONE")
         else:
-            print("ERROR")
+            print("STOREERROR []")
         exit()
     elif sys.argv[2] == "remove":
         if snapmgmt.snap_remove(sys.argv[3]):
-            print("DONE")
+            print("STOREDONE")
         else:
-            print("ERROR")
+            print("STOREERROR []")
         exit()
 
 elif sys.argv[1] == "flatpak":

@@ -46,6 +46,19 @@ class SnapMgmt():
 
     def install_package(self, packagename):
         self.packagename = packagename
+        thread = Thread(target=self._install_package,
+                        args=())
+        thread.daemon = True
+        thread.start()
+        
+    def _install_package(self):
+        #Who at GTK's team thought needing to go through this mess was adequate for Python code?
+        GLib.idle_add(self.__install_package, [], [], [])
+        
+    def __install_package(self, packagesinstalled, packagesupgraded, packagesremoved):
+        ChangesConfirmDialog(self.packagename, "install", self.classnetwork, packagesinstalled, packagesupgraded, packagesremoved, self, "snap")
+        
+    def confirm_install_package(self, packagename):
         self.classnetwork.TasksMgmt.add_task("snap:inst:"+packagename)
         self.classnetwork.TasksMgmt.start_now()
 
@@ -53,6 +66,20 @@ class SnapMgmt():
 
     def remove_package(self, packagename):
         self.packagename = packagename
+        thread = Thread(target=self._remove_package,
+                        args=())
+        thread.daemon = True
+        thread.start()
+        
+    def _remove_package(self):
+        #Who at GTK's team thought needing to go through this mess was adequate for Python code?
+        GLib.idle_add(self.__remove_package, [], [], [])
+        
+    def __remove_package(self, packagesinstalled, packagesupgraded, packagesremoved):
+        
+        ChangesConfirmDialog(self.packagename, "remove", self.classnetwork, packagesinstalled, packagesupgraded, packagesremoved, self, "snap")
+        
+    def confirm_remove_package(self, packagename):
         self.classnetwork.TasksMgmt.add_task("snap:rm:"+packagename)
         self.classnetwork.TasksMgmt.start_now()
 

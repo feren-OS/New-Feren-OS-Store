@@ -827,12 +827,10 @@ class AppDetailsHeader(Gtk.Box):
             elif classnetwork.TasksMgmt.currenttask.startswith("snap:") and classnetwork.TasksMgmt.currenttask.endswith(":"+package):
                 self.change_button_state("busy", False)
                 return
-            ifinstalled = SnapChecks.checkinstalled(package)
+            ifinstalled = SnapChecks.checkinstalled(mgmtpkgname)
             if self.current_package == package:
                 if ifinstalled == 1:
                     self.change_button_state("installed", False)
-                elif ifinstalled == 3:
-                    self.change_button_state("updatable", False)
                 else:
                     self.change_button_state("uninstalled", False)
         

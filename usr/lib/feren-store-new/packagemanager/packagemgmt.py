@@ -81,6 +81,8 @@ if sys.argv[1] == "flatpak":
             self.taskstbinstalled = {}
             self.taskstbupdated = {}
             self.taskstbremoved = {}
+
+            self.flatpakoverridesiceaccess = ["org.mozilla.firefox"]
             
             if self.superuser == True:
                 self.flatpakclassthing = Flatpak.Installation.new_system()
@@ -99,14 +101,14 @@ if sys.argv[1] == "flatpak":
             self.all_refs = []
             for remote_name in self.flatpakremotes:
                 try:
-                    self.all_refs = self.flatpakclassthing.list_remote_refs_sync(remote_name.get_name(), None)
+                    self.all_refs.extend(self.flatpakclassthing.list_remote_refs_sync(remote_name.get_name(), None))
                     if self.flatpakclassthing != self.flatpakclassthingalt:
                         for i in self.flatpakclassthingalt.list_remote_refs_sync(remote_name.get_name(), None):
                             if i not in self.all_refs:
                                 self.all_refs.append(i)
                 except:
                     try:
-                        self.all_refs = self.flatpakclassthingalt.list_remote_refs_sync(remote_name.get_name(), None)
+                        self.all_refs.extend(self.flatpakclassthingalt.list_remote_refs_sync(remote_name.get_name(), None))
                     except:
                         pass
 
@@ -139,7 +141,7 @@ if sys.argv[1] == "flatpak":
             return False
 
 
-        def _add_ref_to_task(self, refname, remotename, optype, verboseoutput=False):
+        def _add_ref_to_task(self, refname, remotename, optype):
             if optype == "install":
                 self.taskstbinstalled[remotename].append(refname)
             elif optype == "remove":
@@ -179,7 +181,13 @@ if sys.argv[1] == "flatpak":
 
             try:
                 meta = self.flatpakclassthing.fetch_remote_metadata_sync(remote_name, ref, None)
-
+            except:
+                try:
+                    meta = self.flatpakclassthingalt.fetch_remote_metadata_sync(remote_name, ref, None)
+                except:
+                    meta = None
+            
+            try:
                 keyfile = GLib.KeyFile.new()
 
                 data = meta.get_data().decode()
@@ -231,13 +239,13 @@ if sys.argv[1] == "flatpak":
 
             return return_refs
 
-        def add_install_to_transaction(self, refthing, remotename, verboseoutput=False):
+        def add_install_to_transaction(self, refthing, remotename):
             try:
                 self.taskstbinstalled[remotename] = []
                 self.taskstbupdated[remotename] = []
                 self.taskstbremoved[remotename] = []
 
-                self._add_ref_to_task(refthing, remotename, "install", verboseoutput)
+                self._add_ref_to_task(refthing, remotename, "install")
                 update_list = self.flatpakclassthing.list_installed_refs_for_update(None)
 
                 all_related_refs = self._get_remote_related_refs(remotename, refthing)
@@ -246,36 +254,33 @@ if sys.argv[1] == "flatpak":
 
                 if not runtime_ref == None:
                     if not self.is_flatpak_installed(runtime_ref):
-                        self._add_ref_to_task(runtime_ref, remotename, "install", verboseoutput)
+                        self._add_ref_to_task(runtime_ref, remotename, "install")
                     else:
                         if runtime_ref in update_list:
-                            self._add_ref_to_task(runtime_ref, remotename, "update", verboseoutput)
-                    all_related_refs += _get_remote_related_refs(remotename, runtime_ref)
+                            self._add_ref_to_task(runtime_ref, remotename, "update")
+                    all_related_refs += self._get_remote_related_refs(remotename, runtime_ref)
 
                 for related_ref in all_related_refs:
                     if not self.is_flatpak_installed(related_ref):
-                        self._add_ref_to_task(related_ref, remotename, "install", verboseoutput)
+                        self._add_ref_to_task(related_ref, remotename, "install")
                     else:
                         if related_ref in update_list:
-                            self._add_ref_to_task(related_ref, remotename, "update", verboseoutput)
+                            self._add_ref_to_task(related_ref, remotename, "update")
 
-            except Exception as e:
-                print(e)
+            except:
                 # Something went wrong, bail out
-                if verboseoutput:
-                    print({"install": {}, "update": {}, "remove": {}})
                 self.taskstbinstalled[remotename] = []
                 self.taskstbupdated[remotename] = []
                 self.taskstbremoved[remotename] = []
                 return
 
-        def add_remove_to_transaction(self, refthing, remotename, verboseoutput=False):
+        def add_remove_to_transaction(self, refthing, remotename):
             try:
                 self.taskstbinstalled[remotename] = []
                 self.taskstbupdated[remotename] = []
                 self.taskstbremoved[remotename] = []
 
-                self._add_ref_to_task(refthing, remotename, "remove", verboseoutput)
+                self._add_ref_to_task(refthing, remotename, "remove")
 
                 related_refs = self.flatpakclassthing.list_installed_related_refs_sync(remotename,
                                                                     refthing.format_ref(),
@@ -283,14 +288,9 @@ if sys.argv[1] == "flatpak":
 
                 for related_ref in related_refs:
                     if self.is_flatpak_installed(related_ref) and related_ref.should_delete():
-                        if related_ref.get_remote_name() not in taskstbremoved:
-                            self.taskstbremoved[related_ref.get_remote_name()] = []
-                        self._add_ref_to_task(related_ref, related_ref.get_remote_name(), "remove", verboseoutput)
+                        self._add_ref_to_task(related_ref, remotename, "remove")
 
-            except Exception as e:
-                print(e)
-                if verboseoutput:
-                    print({"install": {}, "update": {}, "remove": {}})
+            except:
                 self.taskstbinstalled[remotename] = []
                 self.taskstbupdated[remotename] = []
                 self.taskstbremoved[remotename] = []
@@ -315,12 +315,11 @@ if sys.argv[1] == "flatpak":
             for remote in self.taskstbinstalled:
                 for ref in self.taskstbinstalled[remote]:
                     try:
-                        ref2 = self.get_ref_from_name(ref)
-                        self.flatpakclassthing.install(ref2.get_remote_name(),
-                                            ref2.get_kind(),
-                                            ref2.get_name(),
-                                            ref2.get_arch(),
-                                            ref2.get_branch(),
+                        self.flatpakclassthing.install(ref.get_remote_name(),
+                                            ref.get_kind(),
+                                            ref.get_name(),
+                                            ref.get_arch(),
+                                            ref.get_branch(),
                                             self.progress_flatpak_cb,
                                             None,
                                             None)
@@ -332,17 +331,20 @@ if sys.argv[1] == "flatpak":
                     self.current_count += 1
                     
                     print(math.floor(((self.current_count * (1.0/self.item_count)) * 100.0)))
+
+                    #Flatpak overrides - ICE profiles folder access
+                    if ref.get_name() in self.flatpakoverridesiceaccess:
+                        os.system("/usr/bin/flatpak override "+ref.get_name()+" --filesystem=~/.local/share/feren-store-ice")
 
             for remote in self.taskstbremoved:
                 for ref in self.taskstbremoved[remote]:
                     try:
-                        ref2 = self.get_ref_from_name(ref)
                         #Fake 90% because Flatpak doesn't actually mark progress when removing
                         print(math.floor(((self.current_count * (1.0 / self.item_count)) + (0.9 / self.item_count)) * 100.0))
-                        self.flatpakclassthing.uninstall(ref2.get_kind(),
-                                            ref2.get_name(),
-                                            ref2.get_arch(),
-                                            ref2.get_branch(),
+                        self.flatpakclassthing.uninstall(ref.get_kind(),
+                                            ref.get_name(),
+                                            ref.get_arch(),
+                                            ref.get_branch(),
                                             self.progress_flatpak_cb,
                                             None,
                                             None)
@@ -354,17 +356,20 @@ if sys.argv[1] == "flatpak":
                     self.current_count += 1
                     
                     print(math.floor(((self.current_count * (1.0/self.item_count)) * 100.0)))
+
+                    if os.path.isfile("/var/lib/flatpak/overrides/"+ref.get_name()):
+                        os.system("/bin/rm -f /var/lib/flatpak/overrides/"+ref.get_name())
+                    
 
             for remotes in self.taskstbupdated:
                 for ref in self.taskstbupdated[remotes]:
                     try:
-                        ref2 = self.get_ref_from_name(ref)
                         self.flatpakclassthing.update(Flatpak.UpdateFlags.NONE,
-                                            ref2.get_remote_name(),
-                                            ref2.get_kind(),
-                                            ref2.get_name(),
-                                            ref2.get_arch(),
-                                            ref2.get_branch(),
+                                            ref.get_remote_name(),
+                                            ref.get_kind(),
+                                            ref.get_name(),
+                                            ref.get_arch(),
+                                            ref.get_branch(),
                                             self.progress_flatpak_cb,
                                             None,
                                             None)
@@ -376,26 +381,116 @@ if sys.argv[1] == "flatpak":
                     self.current_count += 1
                     
                     print(math.floor(((self.current_count * (1.0/self.item_count)) * 100.0)))
+
+                    #Flatpak overrides - ICE profiles folder access
+                    if ref.get_name() in self.flatpakoverridesiceaccess:
+                        os.system("/usr/bin/flatpak override "+ref.get_name()+" --filesystem=~/.local/share/feren-store-ice")
+                    
 
             print("STOREDONE")
 
 
         def flatpak_install(self, remote):
-            self.taskstbinstalled[remote] = sys.argv[3:]
+            self.add_install_to_transaction(self.get_ref_from_name(sys.argv[4]), remote)
             #Commit the transaction
             self.flatpak_transaction_commit()
 
 
         def flatpak_upgrade(self, remote):
-            self.taskstbupdated[remote] = sys.argv[3:]
+            self.add_install_to_transaction(self.get_ref_from_name(sys.argv[4]), remote)
             #Commit the transaction
             self.flatpak_transaction_commit()
 
 
         def flatpak_remove(self, remote):
-            self.taskstbremoved[remote] = sys.argv[3:]
+            self.add_remove_to_transaction(self.get_ref_from_name(sys.argv[4]), remote)
             #Commit the transaction
             self.flatpak_transaction_commit()
+
+
+        def flatpak_simulate_install(self, root, remote):
+            if root == True:
+                self.superuser = True
+                self.flatpakclassthing = Flatpak.Installation.new_system()
+                self.flatpakclassthingalt = self.flatpakclassthing
+            else:
+                self.superuser = False
+                self.flatpakclassthing = Flatpak.Installation.new_user()
+                self.flatpakclassthingalt = Flatpak.Installation.new_system()
+            self.add_install_to_transaction(self.get_ref_from_name(sys.argv[5]), remote)
+            simultaskstbinstalled = {}
+            simultaskstbupdated = {}
+            simultaskstbremoved = {}
+            for remote in self.taskstbinstalled:
+                simultaskstbinstalled[remote] = []
+                for ref in self.taskstbinstalled[remote]:
+                    simultaskstbinstalled[remote].append(ref.get_name())
+            for remote in self.taskstbupdated:
+                simultaskstbupdated[remote] = []
+                for ref in self.taskstbupdated[remote]:
+                    simultaskstbupdated[remote].append(ref.get_name())
+            for remote in self.taskstbremoved:
+                simultaskstbremoved[remote] = []
+                for ref in self.taskstbremoved[remote]:
+                    simultaskstbremoved[remote].append(ref.get_name())
+            print([simultaskstbinstalled, simultaskstbupdated, simultaskstbremoved])
+
+
+        def flatpak_simulate_upgrade(self, root, remote):
+            if root == True:
+                self.superuser = True
+                self.flatpakclassthing = Flatpak.Installation.new_system()
+                self.flatpakclassthingalt = self.flatpakclassthing
+            else:
+                self.superuser = False
+                self.flatpakclassthing = Flatpak.Installation.new_user()
+                self.flatpakclassthingalt = Flatpak.Installation.new_system()
+            self.add_install_to_transaction(self.get_ref_from_name(sys.argv[5]), remote)
+            simultaskstbinstalled = {}
+            simultaskstbupdated = {}
+            simultaskstbremoved = {}
+            for remote in self.taskstbinstalled:
+                simultaskstbinstalled[remote] = []
+                for ref in self.taskstbinstalled[remote]:
+                    simultaskstbinstalled[remote].append(ref.get_name())
+            for remote in self.taskstbupdated:
+                simultaskstbupdated[remote] = []
+                for ref in self.taskstbupdated[remote]:
+                    simultaskstbupdated[remote].append(ref.get_name())
+            for remote in self.taskstbremoved:
+                simultaskstbremoved[remote] = []
+                for ref in self.taskstbremoved[remote]:
+                    simultaskstbremoved[remote].append(ref.get_name())
+            print([simultaskstbinstalled, simultaskstbupdated, simultaskstbremoved])
+
+
+        def flatpak_simulate_remove(self, root, remote):
+            if root == True:
+                self.superuser = True
+                self.flatpakclassthing = Flatpak.Installation.new_system()
+                self.flatpakclassthingalt = self.flatpakclassthing
+            else:
+                self.superuser = False
+                self.flatpakclassthing = Flatpak.Installation.new_user()
+                self.flatpakclassthingalt = Flatpak.Installation.new_system()
+            self.add_remove_to_transaction(self.get_ref_from_name(sys.argv[5]), remote)
+            simultaskstbinstalled = {}
+            simultaskstbupdated = {}
+            simultaskstbremoved = {}
+            for remote in self.taskstbinstalled:
+                simultaskstbinstalled[remote] = []
+                for ref in self.taskstbinstalled[remote]:
+                    simultaskstbinstalled[remote].append(ref.get_name())
+            for remote in self.taskstbupdated:
+                simultaskstbupdated[remote] = []
+                for ref in self.taskstbupdated[remote]:
+                    simultaskstbupdated[remote].append(ref.get_name())
+            for remote in self.taskstbremoved:
+                simultaskstbremoved[remote] = []
+                for ref in self.taskstbremoved[remote]:
+                    simultaskstbremoved[remote].append(ref.get_name())
+            print([simultaskstbinstalled, simultaskstbupdated, simultaskstbremoved])
+
 
         def sortref(self, ref):
             try:
@@ -434,7 +529,9 @@ if sys.argv[1] == "apt":
             try:
                 self.run_transaction()
             except Exception as e:
-                print(e)
+                print("STOREERROR", str([e]))
+                self.loop.quit()
+                exit(0)
 
         def on_error(self, error):
             print("STOREERROR", str([aptdaemon.enums.get_error_string_from_enum(error.code), aptdaemon.enums.get_error_description_from_enum(error.code)]))
@@ -504,6 +601,12 @@ elif sys.argv[1] == "flatpak":
         flatpakmgmt.flatpak_upgrade(sys.argv[3])
     elif sys.argv[2] == "remove":
         flatpakmgmt.flatpak_remove(sys.argv[3])
+    elif sys.argv[2] == "simulinstall":
+        flatpakmgmt.flatpak_simulate_install(bool(sys.argv[3] == "True"), sys.argv[4])
+    elif sys.argv[2] == "simulupgrade":
+        flatpakmgmt.flatpak_simulate_upgrade(bool(sys.argv[3] == "True"), sys.argv[4])
+    elif sys.argv[2] == "simulremove":
+        flatpakmgmt.flatpak_simulate_remove(bool(sys.argv[3] == "True"), sys.argv[4])
 
 elif sys.argv[1] == "apt":
     loop = GLib.MainLoop()

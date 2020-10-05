@@ -30,6 +30,8 @@ class ICEMgmt():
             browser2 = "chromium-browser"
         elif browser == "Mozilla Firefox":
             browser2 = "firefox"
+        elif browser == "M.Firefox (Flathub)":
+            browser2 = "firefox-flatpak"
         elif browser == "Brave":
             browser2 = "brave"
         else:

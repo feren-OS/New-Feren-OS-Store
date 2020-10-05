@@ -17,7 +17,6 @@ import subprocess
 import apt
 import gettext
 import gi
-import pty
 from threading import Thread
 
 from gi.repository import GLib
@@ -66,20 +65,20 @@ class APTMgmt():
         packagestoupgrade = []
         packagestoremove = []
         apt_cache = apt.Cache()
-        pkginfo = apt_cache[package]
+        package2 = self.classnetwork.JSONReader.getNameFromInternal(package, "apt")
         if operationtype == "install":
-            apt_cache[package].mark_install(True)
+            apt_cache[package2].mark_install(True)
         elif operationtype == "upgrade":
-            apt_cache[package].mark_upgrade(True)
+            apt_cache[package2].mark_upgrade(True)
         elif operationtype == "remove":
-            apt_cache[package].mark_delete(True)
+            apt_cache[package2].mark_delete(True)
         for item in apt_cache:
             if apt_cache[item.name].marked_install:
-                packagestoinstall.append(item.name)
+                packagestoinstall.append(self.classnetwork.JSONReader.getInternalFromName(item.name, "apt"))
             elif apt_cache[item.name].marked_upgrade:
-                packagestoupgrade.append(item.name)
+                packagestoupgrade.append(self.classnetwork.JSONReader.getInternalFromName(item.name, "apt"))
             elif apt_cache[item.name].marked_delete:
-                packagestoremove.append(item.name)
+                packagestoremove.append(self.classnetwork.JSONReader.getInternalFromName(item.name, "apt"))
         return(packagestoinstall, packagestoupgrade, packagestoremove)
 
     def install_package(self, packagename):

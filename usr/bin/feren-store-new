@@ -98,10 +98,9 @@ class JSONReader():
     def getInternalFromName(self, packagename, pkgtype):
         try:
             for pkg in self.internalpkgnames:
-                if pkg[pkgtype] == packagename:
+                if self.internalpkgnames[pkg][pkgtype] == packagename:
                     return pkg
-            else:
-                return None
+            return None
         except:
             return None
 
@@ -392,7 +391,7 @@ class TasksMgmt(object):
             while classnetwork.FlatpakMgmt.changesinaction == True:
                 pass
             
-            classnetwork.FlatpakMgmt.run_transaction(classnetwork.JSONReader.getNameFromInternal(task.split('flatpak:inst:')[1], "flatpak"), "install")
+            classnetwork.FlatpakMgmt.run_transaction(classnetwork.JSONReader.getNameFromInternal(task.split('flatpak:inst:')[1], "flatpak"), classnetwork.JSONReader.availablesources[task.split('flatpak:inst:')[1]]["flatpak"].split("flatpak-")[1], "install")
 
             self.currenttasks.remove(task)
             self.currenttask = ""
@@ -400,7 +399,7 @@ class TasksMgmt(object):
             while classnetwork.FlatpakMgmt.changesinaction == True:
                 pass
             
-            classnetwork.FlatpakMgmt.run_transaction(classnetwork.JSONReader.getNameFromInternal(task.split('flatpak:upgr:')[1], "flatpak"), "upgrade")
+            classnetwork.FlatpakMgmt.run_transaction(classnetwork.JSONReader.getNameFromInternal(task.split('flatpak:upgr:')[1], "flatpak"), classnetwork.JSONReader.availablesources[task.split('flatpak:upgr:')[1]]["flatpak"].split("flatpak-")[1], "upgrade")
 
             self.currenttasks.remove(task)
             self.currenttask = ""
@@ -408,7 +407,7 @@ class TasksMgmt(object):
             while classnetwork.FlatpakMgmt.changesinaction == True:
                 pass
             
-            classnetwork.FlatpakMgmt.run_transaction(classnetwork.JSONReader.getNameFromInternal(task.split('flatpak:rm:')[1], "flatpak"), "remove")
+            classnetwork.FlatpakMgmt.run_transaction(classnetwork.JSONReader.getNameFromInternal(task.split('flatpak:rm:')[1], "flatpak"), classnetwork.JSONReader.availablesources[task.split('flatpak:rm:')[1]]["flatpak"].split("flatpak-")[1], "remove")
             
             self.currenttasks.remove(task)
             self.currenttask = ""
@@ -450,7 +449,7 @@ class TasksMgmt(object):
         classnetwork.AppDetailsHeader.app_mgmt_progress.set_fraction(0.0)
         classnetwork.AppDetailsHeader.switch_source(classnetwork.AppDetailsHeader.current_package, classnetwork.AppDetailsHeader.current_package_type, False)
         if classnetwork.AppDetailsHeader.current_package.startswith("feren-ice-ssb-"):
-            classnetwork.AppDetailsHeader.get_sources(packagetoview) #Refresh browsers every time
+            classnetwork.AppDetailsHeader.get_sources(classnetwork.AppDetailsHeader.current_package) #Refresh browsers every time
         
     def do_tasks(self):
         self.inaction = True
@@ -671,6 +670,9 @@ class AppDetailsHeader(Gtk.Box):
                 amount_of_sources += 1
             if os.path.isfile("/usr/bin/firefox"):
                 iface_list_store.append(["Mozilla Firefox"])
+                amount_of_sources += 1
+            if classnetwork.flatpakmgmtimported == True and os.path.isfile("/var/lib/flatpak/overrides/org.mozilla.firefox"):
+                iface_list_store.append(["M.Firefox (Flathub)"]) #TODO: Add userland support here
                 amount_of_sources += 1
             if os.path.isfile("/usr/bin/brave-browser"):
                 iface_list_store.append(["Brave"])

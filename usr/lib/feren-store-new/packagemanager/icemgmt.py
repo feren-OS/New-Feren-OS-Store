@@ -27,11 +27,6 @@ from gi.repository import GLib
 from gi.repository import Gtk
 from gi.repository.GdkPixbuf import Pixbuf
 
-_BRAVE_BIN = "/usr/bin/brave-browser"
-_CHROME_BIN = "/usr/bin/google-chrome"
-_CHROMIUM_BIN = "/usr/bin/chromium-browser"
-_VIVALDI_BIN = "/usr/bin/vivaldi-stable"
-_FIREFOX_BIN = "/usr/bin/firefox"
 _HOME = os.getenv("HOME")
 _ICE_DIR = "{0}/.local/share/feren-store-ice".format(_HOME)
 _ICON_DIR = "{0}/icons".format(_ICE_DIR)
@@ -71,7 +66,7 @@ class Ice():
         self.loc = sys.argv[4]
         self.iconpath = sys.argv[5]
 
-        if sys.argv[6] != "google-chrome" and sys.argv[6] != "chromium-browser" and sys.argv[6] != "brave" and sys.argv[6] != "vivaldi" and sys.argv[6] != "firefox":
+        if sys.argv[6] != "google-chrome" and sys.argv[6] != "chromium-browser" and sys.argv[6] != "brave" and sys.argv[6] != "vivaldi" and sys.argv[6] != "firefox" and sys.argv[6] != "firefox-flatpak":
             print("ERROR unsupportedbrowser")
             exit(1)
 
@@ -126,6 +121,16 @@ class Ice():
                                                              formatted)
                 self.appfile1.write("Exec=" + self.browser +
                                     " --class FEREN-STORE-ICE-SSB-" + formatted +
+                                    " --profile " + self.firefox_profile_path +
+                                    " --no-remote " + address + "\n")
+
+                self.appfile1.write("IceFirefox={0}\n".format(formatted))
+                os.system("/usr/lib/feren-store-new/ice/browsers/ice-firefox "+formatted)
+            elif self.browser == "firefox-flatpak":
+                self.firefox_profile_path = "{0}/{1}".format(_FF_PROFILES_DIR,
+                                                             formatted)
+                self.appfile1.write("Exec=/usr/bin/flatpak run org.mozilla.firefox --class FEREN-STORE-ICE-SSB-" +
+                                    formatted +
                                     " --profile " + self.firefox_profile_path +
                                     " --no-remote " + address + "\n")
 

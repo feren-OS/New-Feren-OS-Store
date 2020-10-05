@@ -17,7 +17,6 @@ import subprocess
 import apt
 import gettext
 import gi
-import pty
 from threading import Thread
 
 gi.require_version('Flatpak', '1.0')
@@ -86,10 +85,24 @@ class FlatpakMgmt():
         self.changesinaction = False
         
     def check_real_changes(self, package, operationtype):
+        import ast
         packagestoinstall = []
         packagestoupgrade = []
         packagestoremove = []
-        #TODO: Make these be either predefined or get some Flatpak dependency evaluation in here
+        package2 = self.classnetwork.JSONReader.getNameFromInternal(package, "flatpak")
+        remote_name = self.classnetwork.JSONReader.availablesources[package]["flatpak"].split("flatpak-")[1]
+        changesdictlist = ast.literal_eval(subprocess.check_output(['/usr/lib/feren-store-new/packagemanager/packagemgmt.py', 'flatpak', 'simul'+operationtype, str(not self.userland), remote_name, package2]).decode("utf-8"))
+
+        for ref in changesdictlist[0][remote_name]:
+            packagestoinstall.append(self.classnetwork.JSONReader.getInternalFromName(ref, "flatpak"))
+        for ref in changesdictlist[1][remote_name]:
+            packagestoupgrade.append(self.classnetwork.JSONReader.getInternalFromName(ref, "flatpak"))
+        for ref in changesdictlist[2][remote_name]:
+            packagestoremove.append(self.classnetwork.JSONReader.getInternalFromName(ref, "flatpak"))
+        
+        packagestoinstall = [i for i in packagestoinstall if i]
+        packagestoupgrade = [i for i in packagestoupgrade if i]
+        packagestoremove = [i for i in packagestoremove if i]
         return(packagestoinstall, packagestoupgrade, packagestoremove)
 
     def install_package(self, packagename, userland):
@@ -168,10 +181,10 @@ class FlatpakMgmt():
         self.changesinaction = False
         self.classnetwork.AppDetailsHeader.on_installer_finished(package)
 
-    def run_transaction(self, package, optype):
+    def run_transaction(self, package, remote, optype):
         self.changesinaction = True
 
-        command = ["/usr/bin/pkexec", "/usr/lib/feren-store-new/packagemanager/packagemgmt.py", "flatpak", optype, package]
+        command = ["/usr/bin/pkexec", "/usr/lib/feren-store-new/packagemanager/packagemgmt.py", "flatpak", optype, remote, package]
         
         from feren_store import executecmd
         executecmd.run_transaction(command, self.on_transaction_finished, self.on_error, self.on_transaction_progress, package)

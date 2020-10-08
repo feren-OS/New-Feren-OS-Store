@@ -1,0 +1,30 @@
+{
+  "feren-extra-backgrounds": {
+    "author": "Feren OS Team",
+    "bugreporturl": "",
+    "aptsource": "",
+    "tos": "",
+    "privpol": ""
+  },
+  "feren-store": {
+    "author": "Feren OS Team",
+    "bugreporturl": "https://github.com/feren-OS/Bug-Reporting-Center/issues/",
+    "aptsource": "",
+    "tos": "",
+    "privpol": ""
+  },
+  "chromium-browser": {
+    "author": "Google",
+    "bugreporturl": "",
+    "aptsource": "",
+    "tos": "",
+    "privpol": ""
+  },
+  "firefox": {
+    "author": "Mozilla",
+    "bugreporturl": "",
+    "aptsource": "",
+    "tos": "",
+    "privpol": ""
+  }
+}

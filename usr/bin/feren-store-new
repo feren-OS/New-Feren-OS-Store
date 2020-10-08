@@ -74,20 +74,42 @@ class JSONReader():
     '''
 
     def __init__(self):
+        import locale #Move this to the top of the code if it's ever needed elsewhere
+        locale = locale.getlocale()[0]
         with open("/usr/share/feren-store-new/curated/store-internalnames/packages.json") as file:
             self.internalpkgnames = json.load(file)
-        with open("/usr/share/feren-store-new/curated/apt/packages.json") as file:
-            self.aptdata = json.load(file)
-        with open("/usr/share/feren-store-new/curated/snap/packages.json") as file:
-            self.snapdata = json.load(file)
-        with open("/usr/share/feren-store-new/curated/flatpak/packages.json") as file:
-            self.flatpakdata = json.load(file)
-        with open("/usr/share/feren-store-new/curated/ice/websites.json") as file:
-            self.icedata = json.load(file)
+        try:
+            with open("/usr/share/feren-store-new/curated/"+locale+"/apt/packages.json") as file:
+                self.aptdata = json.load(file)
+        except:
+            with open("/usr/share/feren-store-new/curated/generic/apt/packages.json") as file:
+                self.aptdata = json.load(file)
+        try:
+            with open("/usr/share/feren-store-new/curated/"+locale+"/snap/packages.json") as file:
+                self.snapdata = json.load(file)
+        except:
+            with open("/usr/share/feren-store-new/curated/generic/snap/packages.json") as file:
+                self.snapdata = json.load(file)
+        try:
+            with open("/usr/share/feren-store-new/curated/"+locale+"/flatpak/packages.json") as file:
+                self.flatpakdata = json.load(file)
+        except:
+            with open("/usr/share/feren-store-new/curated/generic/flatpak/packages.json") as file:
+                self.flatpakdata = json.load(file)
+        try:
+            with open("/usr/share/feren-store-new/curated/"+locale+"/ice/websites.json") as file:
+                self.icedata = json.load(file)
+        except:
+            with open("/usr/share/feren-store-new/curated/generic/ice/websites.json") as file:
+                self.icedata = json.load(file)
         with open("/usr/share/feren-store-new/curated/sources/packages.json") as file:
             self.availablesources = json.load(file)
-        with open("/usr/share/feren-store-new/curated/package-generic-data.json") as file:
-            self.genericpkgdata = json.load(file)
+        try:
+            with open("/usr/share/feren-store-new/curated/"+locale+"/package-generic-data.json") as file:
+                self.genericpkgdata = json.load(file)
+        except:
+            with open("/usr/share/feren-store-new/curated/generic/package-generic-data.json") as file:
+                self.genericpkgdata = json.load(file)
 
     def getNameFromInternal(self, internalname, pkgtype):
         try:
@@ -466,14 +488,20 @@ class TasksMgmt(object):
         classnetwork.AppDetailsHeader.switch_source(classnetwork.AppDetailsHeader.current_package, classnetwork.AppDetailsHeader.current_package_type, False)
         if classnetwork.AppDetailsHeader.current_package.startswith("feren-ice-ssb-"):
             classnetwork.AppDetailsHeader.get_sources(classnetwork.AppDetailsHeader.current_package) #Refresh browsers every time
-        
+
     def do_tasks(self):
+        if classnetwork.flatpakmgmtimported == True:
+            #Lock userland setting while tasks are running.
+            classnetwork.FlatpakMgmt.userlandlock = True
         self.inaction = True
         while self.currenttasks != []:
             self.do_task(self.currenttasks[0])
             self.gui_refresh_tasks()
             
         self.inaction = False
+        if classnetwork.flatpakmgmtimported == True:
+            #Unlock the setting now that tasks are done
+            classnetwork.FlatpakMgmt.userlandlock = False
         
     def closing_check(self):
         if self.currenttasks != []:

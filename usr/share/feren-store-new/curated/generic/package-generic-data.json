@@ -1,0 +1,50 @@
+{
+  "feren-extra-backgrounds": {
+    "realname": "Feren OS Extra Backgrounds",
+    "iconurl": "file:///usr/share/icons/Inspire/256/apps/preferences-wallpaper.png",
+    "shortdescription": "Extra Feren OS backgrounds",
+    "description": "If you didn't think there were enough beautiful backgrounds for feren OS, here's EVEN MORE to accompany your feren OS Desktop!",
+    "website": "http://ferenos.weebly.com/",
+    "donation": "",
+    "category": "backgrounds",
+    "image1": "",
+    "image2": "",
+    "image3": ""
+  },
+  "feren-store": {
+    "realname": "Feren Store",
+    "iconurl": "file:///usr/share/icons/Inspire/256/apps/feren-store.png",
+    "shortdescription": "The original Feren OS Store",
+    "description": "The old Feren OS Store",
+    "website": "https://ferenos.weebly.com/",
+    "donation": "",
+    "category": "system",
+    "image1": "",
+    "image2": "",
+    "image3": ""
+  },
+  "google-chromium": {
+    "realname": "Chromium",
+    "iconurl": "https://upload.wikimedia.org/wikipedia/commons/2/26/Chromium_logo.png",
+    "shortdescription": "TODO",
+    "description": "TODO",
+    "website": "",
+    "donation": "",
+    "category": "browsers",
+    "image1": "https://www.gstatic.com/chrome/appstream/chrome-2.png",
+    "image2": "",
+    "image3": ""
+  },
+  "mozilla-firefox": {
+    "realname": "Firefox",
+    "iconurl": "https://lh3.googleusercontent.com/zqsuwFUBwKRcGOSBinKQCL3JgfvOW49vJphq0ZF32aDgfqmuDyl-fEpx4Lxm4pRr7A=s0",
+    "shortdescription": "TODO",
+    "description": "TODO",
+    "website": "",
+    "donation": "",
+    "category": "browsers",
+    "image1": "https://www.gstatic.com/chrome/appstream/chrome-2.png",
+    "image2": "",
+    "image3": ""
+  }
+}

@@ -1,0 +1,57 @@
+{
+  "google-youtube": {
+    "realname": "YouTube",
+    "iconurl": "https://lh3.googleusercontent.com/Ned_Tu_ge6GgJZ_lIO_5mieIEmjDpq9kfgD05wapmvzcInvT4qQMxhxq_hEazf8ZsqA=w300",
+    "description": "See what the world is watching -- from the hottest music videos to what’s trending in gaming, entertainment, news, and more. Subscribe to channels you love, share with friends, and watch on any device.",
+    "category": "Multimedia",
+    "image1": "",
+    "image2": "",
+    "image3": "",
+    "keywords": "Google;You;Videos;Broadcast;",
+    "website": "https://youtube.com/"
+  },
+  "microsoft-office-online": {
+    "realname": "Microsoft Office Online",
+    "iconurl": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5f/Microsoft_Office_logo_%282019%E2%80%93present%29.svg/480px-Microsoft_Office_logo_%282019%E2%80%93present%29.svg.png",
+    "description": "Microsoft Office Online allows you to use Word, Excel, PowerPoint, OneNote and more of the Office suite on the go through Microsoft's cloud services. It gives you access to all the essential Office features you should need on a daily basis.",
+    "category": "Office",
+    "image1": "",
+    "image2": "",
+    "image3": "",
+    "keywords": "Microsoft;Office;Word;PowerPoint;Excel;OneNote;SharePoint;Outlook;Sway;Yammer;Project;Delve;",
+    "website": "https://office.com/"
+  },
+  "facebook-facebook": {
+    "realname": "Facebook",
+    "iconurl": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/05/Facebook_Logo_%282019%29.png/480px-Facebook_Logo_%282019%29.png",
+    "description": "Keeping up with friends is faster and easier than ever. Share updates and photos, engage with friends and Pages, and stay connected to communities important to you.",
+    "category": "Internet",
+    "image1": "",
+    "image2": "",
+    "image3": "",
+    "keywords": "Facebook;Messenger;Zucc;Stories;Social;",
+    "website": "https://facebook.com/"
+  },
+  "twitter-twitter": {
+    "realname": "Twitter",
+    "iconurl": "https://lh3.googleusercontent.com/U2H5O-RNxa4OQKByVCdiqlASgXPvEg5EWx_E8IWWrdROOAetGa4SN-u4YNcnjSHakCCh=s300",
+    "description": "Join the conversation! Twitter is your go-to social media app and the source for what's happening in the world. From world news to local news updates, entertainment to sports and gaming, politics to fun stories that go viral, when it happens in the world, it happens on Twitter first. Find friends, gain followers or follow influential people - every voice can impact the world! Join over 2 BILLION users worldwide!",
+    "category": "Internet",
+    "image1": "",
+    "image2": "",
+    "image3": "",
+    "keywords": "Twitter;Tweet;Social;",
+    "website": "https://twitter.com/"
+  },
+  "reddit-reddit": {
+    "realname": "Reddit",
+    "iconurl": "https://www.redditstatic.com/desktop2x/img/favicon/apple-icon-180x180.png",
+    "description": "With over 100K active communities, on Reddit you can laugh, think, discuss and dig deep into topics that matter to you.\nReddit is free and open for everyone to post, share, vote and discuss.\nReddit is powered by people. Your communities upvote and downvote posts to highlight the most interesting and relevant content. On Reddit, your privacy and opinions matter.\nYou can share your passion for your favorite books, movies, video games, sports, TV shows, music and technology with millions of people who share your interests.",
+    "category": "Internet",
+    "image1": "",
+    "image2": "",
+    "image3": "",
+    "keywords": "Subreddits;Karma;Social;",
+    "website": "https://reddit.com/"
+  }
+}

@@ -56,7 +56,7 @@ class APTChecks():
 
 class APTMgmt():
     def __init__(self, classnetwork):
-        self.packagename = ""
+        self.packagenamemgmt = ""
         self.classnetwork = classnetwork
         self.changesinaction = False
         
@@ -82,59 +82,55 @@ class APTMgmt():
         return(packagestoinstall, packagestoupgrade, packagestoremove)
 
     def install_package(self, packagename):
-        self.packagename = packagename
         thread = Thread(target=self._install_package,
-                        args=())
+                        args=(packagename,))
         thread.daemon = True
         thread.start()
         
-    def _install_package(self):
-        packagesinstalled, packagesupgraded, packagesremoved = self.check_real_changes(self.packagename, "install")
+    def _install_package(self, packagename):
+        packagesinstalled, packagesupgraded, packagesremoved = self.check_real_changes(packagename, "install")
         #Who at GTK's team thought needing to go through this mess was adequate for Python code?
-        GLib.idle_add(self.__install_package, packagesinstalled, packagesupgraded, packagesremoved)
+        GLib.idle_add(self.__install_package, packagesinstalled, packagesupgraded, packagesremoved, packagename)
         
-    def __install_package(self, packagesinstalled, packagesupgraded, packagesremoved):
+    def __install_package(self, packagesinstalled, packagesupgraded, packagesremoved, packagename):
         #TODO: Add advanced mode setting which makes the dialog show ALL of the installs/upgrades/removals/etc.
-        ChangesConfirmDialog(self.packagename, "install", self.classnetwork, packagesinstalled, packagesupgraded, packagesremoved, self, "apt")
+        ChangesConfirmDialog(packagename, "install", self.classnetwork, packagesinstalled, packagesupgraded, packagesremoved, self, "apt")
         
     def confirm_install_package(self, packagename):
         self.classnetwork.TasksMgmt.add_task("apt:inst:"+packagename)
         self.classnetwork.TasksMgmt.start_now()
 
     def upgrade_package(self, packagename):
-        self.packagename = packagename
         thread = Thread(target=self._upgrade_package,
-                        args=())
+                        args=(packagename,))
         thread.daemon = True
         thread.start()
         
-    def _upgrade_package(self):
-        packagesinstalled, packagesupgraded, packagesremoved = self.check_real_changes(self.packagename, "upgrade")
+    def _upgrade_package(self, packagename):
+        packagesinstalled, packagesupgraded, packagesremoved = self.check_real_changes(packagename, "upgrade")
         #Who at GTK's team thought needing to go through this mess was adequate for Python code?
-        GLib.idle_add(self.__upgrade_package, packagesinstalled, packagesupgraded, packagesremoved)
+        GLib.idle_add(self.__upgrade_package, packagesinstalled, packagesupgraded, packagesremoved, packagename)
         
-    def __upgrade_package(self, packagesinstalled, packagesupgraded, packagesremoved):
-        ChangesConfirmDialog(self.packagename, "upgrade", self.classnetwork, packagesinstalled, packagesupgraded, packagesremoved, self, "apt")
+    def __upgrade_package(self, packagesinstalled, packagesupgraded, packagesremoved, packagename):
+        ChangesConfirmDialog(packagename, "upgrade", self.classnetwork, packagesinstalled, packagesupgraded, packagesremoved, self, "apt")
         
     def confirm_upgrade_package(self, packagename):
         self.classnetwork.TasksMgmt.add_task("apt:upgr:"+packagename)
         self.classnetwork.TasksMgmt.start_now()
 
     def remove_package(self, packagename):
-        self.packagename = packagename
         thread = Thread(target=self._remove_package,
-                        args=())
+                        args=(packagename,))
         thread.daemon = True
         thread.start()
         
-    def _remove_package(self):
-        packagesinstalled, packagesupgraded, packagesremoved = self.check_real_changes(self.packagename, "remove")
+    def _remove_package(self, packagename):
+        packagesinstalled, packagesupgraded, packagesremoved = self.check_real_changes(packagename, "remove")
         #Who at GTK's team thought needing to go through this mess was adequate for Python code?
-        GLib.idle_add(self.__remove_package, packagesinstalled, packagesupgraded, packagesremoved)
+        GLib.idle_add(self.__remove_package, packagesinstalled, packagesupgraded, packagesremoved, packagename)
         
-    def __remove_package(self, packagesinstalled, packagesupgraded, packagesremoved):
-        
-        ChangesConfirmDialog(self.packagename, "remove", self.classnetwork, packagesinstalled, packagesupgraded, packagesremoved, self, "apt")
+    def __remove_package(self, packagesinstalled, packagesupgraded, packagesremoved, packagename):
+        ChangesConfirmDialog(packagename, "remove", self.classnetwork, packagesinstalled, packagesupgraded, packagesremoved, self, "apt")
         
     def confirm_remove_package(self, packagename):
         self.classnetwork.TasksMgmt.add_task("apt:rm:"+packagename)
@@ -157,6 +153,7 @@ class APTMgmt():
 
     def run_transaction(self, package, optype):
         self.changesinaction = True
+        self.packagenamemgmt = package
 
         command = ["/usr/bin/pkexec", "/usr/lib/feren-store-new/packagemanager/packagemgmt.py", "apt", optype, package]
         

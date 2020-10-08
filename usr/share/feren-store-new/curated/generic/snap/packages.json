@@ -1,0 +1,16 @@
+{
+  "chromium": {
+    "author": "Canonical",
+    "bugreporturl": "",
+    "aptsource": "",
+    "tos": "",
+    "privpol": ""
+  },
+  "firefox": {
+    "author": "Mozilla",
+    "bugreporturl": "",
+    "aptsource": "",
+    "tos": "",
+    "privpol": ""
+  }
+}

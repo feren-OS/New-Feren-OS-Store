@@ -37,7 +37,6 @@ class SnapChecks():
 
 class SnapMgmt():
     def __init__(self, classnetwork):
-        self.packagename = ""
         self.classnetwork = classnetwork
         self.changesinaction = False
         
@@ -45,18 +44,17 @@ class SnapMgmt():
         pass #currently not needed
 
     def install_package(self, packagename):
-        self.packagename = packagename
         thread = Thread(target=self._install_package,
-                        args=())
+                        args=(packagename,))
         thread.daemon = True
         thread.start()
         
-    def _install_package(self):
+    def _install_package(self, packagename):
         #Who at GTK's team thought needing to go through this mess was adequate for Python code?
-        GLib.idle_add(self.__install_package, [], [], [])
+        GLib.idle_add(self.__install_package, [], [], [], packagename)
         
-    def __install_package(self, packagesinstalled, packagesupgraded, packagesremoved):
-        ChangesConfirmDialog(self.packagename, "install", self.classnetwork, packagesinstalled, packagesupgraded, packagesremoved, self, "snap")
+    def __install_package(self, packagesinstalled, packagesupgraded, packagesremoved, packagename):
+        ChangesConfirmDialog(packagename, "install", self.classnetwork, packagesinstalled, packagesupgraded, packagesremoved, self, "snap")
         
     def confirm_install_package(self, packagename):
         self.classnetwork.TasksMgmt.add_task("snap:inst:"+packagename)
@@ -65,19 +63,18 @@ class SnapMgmt():
     #Snaps have automatic updates, so... don't think we really need to bother with having a GUI for managing updates when they're forced on automatic. If anyone wants to add one in, using the GUI for other package types' updates, feel free.
 
     def remove_package(self, packagename):
-        self.packagename = packagename
         thread = Thread(target=self._remove_package,
-                        args=())
+                        args=(packagename,))
         thread.daemon = True
         thread.start()
         
-    def _remove_package(self):
+    def _remove_package(self, packagename):
         #Who at GTK's team thought needing to go through this mess was adequate for Python code?
-        GLib.idle_add(self.__remove_package, [], [], [])
+        GLib.idle_add(self.__remove_package, [], [], [], packagename)
         
-    def __remove_package(self, packagesinstalled, packagesupgraded, packagesremoved):
+    def __remove_package(self, packagesinstalled, packagesupgraded, packagesremoved, packagename):
         
-        ChangesConfirmDialog(self.packagename, "remove", self.classnetwork, packagesinstalled, packagesupgraded, packagesremoved, self, "snap")
+        ChangesConfirmDialog(packagename, "remove", self.classnetwork, packagesinstalled, packagesupgraded, packagesremoved, self, "snap")
         
     def confirm_remove_package(self, packagename):
         self.classnetwork.TasksMgmt.add_task("snap:rm:"+packagename)

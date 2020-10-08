@@ -139,10 +139,26 @@ class ApplicationSourceTranslator():
             return "Standard Install"
         elif appsourceintname == "google-chrome":
             return "Google Chrome Repository"
+        elif appsourceintname == "google-earth":
+            return "Google Earth Repository"
+        elif appsourceintname == "vivaldi":
+            return "Vivaldi Repository"
+        elif appsourceintname == "microsoft-edge":
+            return "Microsoft Edge Repository"
+        elif appsourceintname == "visual-studio":
+            return "Visual Studio Repository"
+        elif appsourceintname == "brave":
+            return "Brave Browser Repository"
+        elif appsourceintname == "opera":
+            return "Opera Browser Repository"
+        elif appsourceintname == "waterfox":
+            return "Waterfox Repository"
         elif appsourceintname == "snapstore":
             return "Snapcraft"
         elif appsourceintname == "flatpak-flathub":
             return "Flathub"
+        elif appsourceintname == "flatpak-appcenter":
+            return "elementary AppCenter"
         else:
             return appsourceintname
         #TODO: Add more
@@ -501,6 +517,13 @@ class AppDetailsHeader(Gtk.Box):
         
         #Application Description
         self.app_desc = Gtk.Label()
+
+        #Sources labels
+        self.sources_label_stack = Gtk.Stack()
+        self.sources_label_package = Gtk.Label(label=("Source: "))
+        self.sources_label_ice = Gtk.Label(label=("Browser: "))
+        self.sources_label_stack.add_named(self.sources_label_package, "PackageSource")
+        self.sources_label_stack.add_named(self.sources_label_ice, "IceSource")
         
         #Application Management Buttons
         self.app_mgmt_button = Gtk.Stack()
@@ -521,12 +544,15 @@ class AppDetailsHeader(Gtk.Box):
         #self.app_mgmt_preparingbtns.start()
         
         #Application Source Combobox
+        self.app_source_dropdown_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        self.app_source_dropdown_box.pack_start(self.sources_label_stack, False, False, 0)
         self.app_source_dropdown = Gtk.ComboBox()
         #NOTE TO SELF: NEVER put this in the dropdown refreshing code - it'll cause duplicated labels
         cell = Gtk.CellRendererText()
         self.app_source_dropdown.pack_start(cell, True)
         self.app_source_dropdown.add_attribute(cell, "text", 0)
         self.app_source_dropdown.connect("changed", self.on_source_dropdown_changed)
+        self.app_source_dropdown_box.pack_end(self.app_source_dropdown, False, False, 0)
         
         #Progress Bar
         self.app_mgmt_progress = Gtk.ProgressBar()
@@ -560,7 +586,7 @@ class AppDetailsHeader(Gtk.Box):
         centering_btnactions_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         
         inside_btnactions_box = Gtk.Box()
-        inside_btnactions_box.pack_start(self.app_source_dropdown, False, False, 4)
+        inside_btnactions_box.pack_start(self.app_source_dropdown_box, False, False, 4)
         inside_btnactions_box.pack_start(self.app_mgmt_progress_box, False, False, 4)
         inside_btnactions_box.pack_start(self.app_mgmt_updatebtn, False, False, 4)
         inside_btnactions_box.pack_start(self.app_mgmt_button, False, False, 4)
@@ -658,6 +684,7 @@ class AppDetailsHeader(Gtk.Box):
         amount_of_sources = 0
 
         if package.startswith("feren-ice-ssb-"):
+            GLib.idle_add(self.sources_label_stack.set_visible_child, self.sources_label_ice)
             #TODO: Put preferred browser at top of list
             if os.path.isfile("/usr/bin/vivaldi-stable"):
                 iface_list_store.append(["Vivaldi"])
@@ -678,6 +705,7 @@ class AppDetailsHeader(Gtk.Box):
                 iface_list_store.append(["Brave"])
                 amount_of_sources += 1
         else:
+            GLib.idle_add(self.sources_label_stack.set_visible_child, self.sources_label_package)
             #Using the JSON Data from sources/packages.json, populate the sources dropdown according to what's available
             sourcenames, orderofsources = [classnetwork.JSONReader.availablesources[package]["apt"], classnetwork.JSONReader.availablesources[package]["flatpak"], classnetwork.JSONReader.availablesources[package]["snap"]], classnetwork.JSONReader.availablesources[package]["order-of-importance"]
             
@@ -704,10 +732,10 @@ class AppDetailsHeader(Gtk.Box):
         self.app_source_dropdown.set_model(iface_list_store)
         self.app_source_dropdown.set_active(0)
         if amount_of_sources <= 1:
-            self.app_source_dropdown.set_visible(False)
+            self.app_source_dropdown_box.set_visible(False)
             self.sources_visible = False
         else:
-            self.app_source_dropdown.set_visible(True)
+            self.app_source_dropdown_box.set_visible(True)
             self.sources_visible = True
             
     def change_button_state(self, newstate, disableremove):
@@ -745,7 +773,7 @@ class AppDetailsHeader(Gtk.Box):
             self.app_mgmt_button.set_visible_child(self.app_mgmt_pending_box)
         elif newstate == "busy":
             #TODO: Add cancel button for non-running tasks once the tasks system is implemented
-            self.app_source_dropdown.set_visible(False)
+            self.app_source_dropdown_box.set_visible(False)
             self.app_mgmt_progress_box.set_visible(True)
             self.app_mgmt_button.set_visible(False)
         elif newstate == "uninstalled":
@@ -792,9 +820,6 @@ class AppDetailsHeader(Gtk.Box):
         self.switch_source(self.current_package, self.current_package_type, False)
 
     def _switch_source(self, package, packagetype, autosourceswitch=True):
-        GLib.idle_add(self.__switch_source, package, packagetype, autosourceswitch)
-    
-    def __switch_source(self, package, packagetype, autosourceswitch=True):
         if self.current_package == "":
             return #Don't do anything if we're not currently in the package view area
         print("Switch Source:", packagetype)
@@ -804,89 +829,83 @@ class AppDetailsHeader(Gtk.Box):
         # If it's the current package but the dropdown isn't on this source, let's abort this code after triggering the part of this code that responds to dropdown value changes (thus making this run again) by changing the dropdown value to the right value
         if self.current_package_type != packagetype:
             if autosourceswitch == True:
-                self.app_source_dropdown.set_active(classnetwork.JSONReader.availablesources[package]["order-of-importance"].index(packagetype))
+                GLib.idle_add(self.app_source_dropdown.set_active(classnetwork.JSONReader.availablesources[package]["order-of-importance"].index(packagetype)))
             return
 
         #Now change the appropriate items of the page
-        classnetwork.AppView.update_insite_information(package, packagetype)
+        GLib.idle_add(classnetwork.AppView.update_insite_information, package, packagetype)
 
 
         #Get the state of the package for changing the buttons presented to the user accordingly - is it installed? does it need an update?
         #packagetype is whether it's native, snap, ice or flatpak
         if self.current_package_type != "ice":
             mgmtpkgname = classnetwork.JSONReader.getNameFromInternal(package, self.current_package_type)
-        self.change_button_state("loading", False)
+        GLib.idle_add(self.change_button_state, "loading", False)
         if self.current_package_type == "apt":
             if ("apt:inst:"+package in classnetwork.TasksMgmt.currenttasks or "apt:upgr:"+package in classnetwork.TasksMgmt.currenttasks or "apt:rm:"+package in classnetwork.TasksMgmt.currenttasks) and not (classnetwork.TasksMgmt.currenttask.startswith("apt:") and classnetwork.TasksMgmt.currenttask.endswith(":"+package)):
-                self.change_button_state("queued", False)
-                return
+                GLib.idle_add(self.change_button_state, "queued", False)
             elif classnetwork.TasksMgmt.currenttask.startswith("apt:") and classnetwork.TasksMgmt.currenttask.endswith(":"+package):
-                self.change_button_state("busy", False)
-                return
+                GLib.idle_add(self.change_button_state, "busy", False)
             ifinstalled = APTChecks.checkinstalled(mgmtpkgname)
             if self.current_package == package:
                 if ifinstalled == 1: #TODO: Change blacklisting of Remove functionality to if the package is in a list of them
-                    self.change_button_state("installed", mgmtpkgname == "feren-store")
+                    GLib.idle_add(self.change_button_state, "installed", mgmtpkgname == "feren-store")
                 elif ifinstalled == 3:
-                    self.change_button_state("updatable", mgmtpkgname == "feren-store")
+                    GLib.idle_add(self.change_button_state, "updatable", mgmtpkgname == "feren-store")
                 elif ifinstalled == 404: #TODO: Move this to if it can't find any usable sources
                     print("Cannot find", mgmtpkgname)
-                    classnetwork.StoreWindow.pages.set_visible_child(classnetwork.StoreWindow.nfpage)
-                    self.hide()
+                    GLib.idle_add(classnetwork.StoreWindow.pages.set_visible_child, classnetwork.StoreWindow.nfpage)
+                    GLib.idle_add(self.hide)
                 else:
                     if APTChecks.checkneedsrepo(mgmtpkgname) != []:
-                        self.change_button_state("sourcemissing", mgmtpkgname == "feren-store")
+                        GLib.idle_add(self.change_button_state, "sourcemissing", mgmtpkgname == "feren-store")
                     else:
-                        self.change_button_state("uninstalled", False)
+                        GLib.idle_add(self.change_button_state, "uninstalled", False)
         
         elif self.current_package_type == "snap":
             if ("snap:inst:"+package in classnetwork.TasksMgmt.currenttasks or "snap:upgr:"+package in classnetwork.TasksMgmt.currenttasks or "snap:rm:"+package in classnetwork.TasksMgmt.currenttasks) and not (classnetwork.TasksMgmt.currenttask.startswith("snap:") and classnetwork.TasksMgmt.currenttask.endswith(":"+package)):
-                self.change_button_state("queued", False)
-                return
+                GLib.idle_add(self.change_button_state, "queued", False)
             elif classnetwork.TasksMgmt.currenttask.startswith("snap:") and classnetwork.TasksMgmt.currenttask.endswith(":"+package):
-                self.change_button_state("busy", False)
-                return
+                GLib.idle_add(self.change_button_state, "busy", False)
             if classnetwork.snapmgmtimported == True:
                 ifinstalled = classnetwork.SnapChecks.checkinstalled(mgmtpkgname)
                 if self.current_package == package:
                     if ifinstalled == 1:
-                        self.change_button_state("installed", False)
+                        GLib.idle_add(self.change_button_state, "installed", False)
                     else:
-                        self.change_button_state("uninstalled", False)
+                        GLib.idle_add(self.change_button_state, "uninstalled", False)
             else:
-                self.change_button_state("sourcemissing", False)
+                GLib.idle_add(self.change_button_state, "sourcemissing", False)
         
         elif self.current_package_type == "flatpak":
             if ("flatpak:inst:"+package in classnetwork.TasksMgmt.currenttasks or "flatpak:upgr:"+package in classnetwork.TasksMgmt.currenttasks or "flatpak:rm:"+package in classnetwork.TasksMgmt.currenttasks) and not (classnetwork.TasksMgmt.currenttask.startswith("flatpak:") and classnetwork.TasksMgmt.currenttask.endswith(":"+package)):
-                self.change_button_state("queued", False)
-                return
+                GLib.idle_add(self.change_button_state, "queued", False)
             elif classnetwork.TasksMgmt.currenttask.startswith("flatpak:") and classnetwork.TasksMgmt.currenttask.endswith(":"+package):
-                self.change_button_state("busy", False)
-                return
+                GLib.idle_add(self.change_button_state, "busy", False)
             if classnetwork.flatpakmgmtimported == True:
                 ifinstalled = classnetwork.FlatpakChecks.checkinstalled(mgmtpkgname, False) #TODO: Add userland Flatpak support (the 'False' = System-wide)
                 if self.current_package == package:
                     if ifinstalled == 1:
-                        self.change_button_state("installed", False)
+                        GLib.idle_add(self.change_button_state, "installed", False)
                     elif ifinstalled == 3:
-                        self.change_button_state("updatable", False)
+                        GLib.idle_add(self.change_button_state, "updatable", False)
                     else:
                         if classnetwork.FlatpakChecks.checkneedsrepo(mgmtpkgname, classnetwork.JSONReader.availablesources[package]["flatpak"].split("flatpak-")[1], False) != []:
-                            self.change_button_state("sourcemissing", False)
+                            GLib.idle_add(self.change_button_state, "sourcemissing", False)
                         else:
-                            self.change_button_state("uninstalled", False)
+                            GLib.idle_add(self.change_button_state, "uninstalled", False)
             else:
-                self.change_button_state("sourcemissing", False)
+                GLib.idle_add(self.change_button_state, "sourcemissing", False)
 
         elif self.current_package_type == "ice":
-            self.app_source_dropdown.set_visible(False)
-            self.change_button_state("loading", False)
+            GLib.idle_add(self.app_source_dropdown_box.set_visible, False)
+            GLib.idle_add(self.change_button_state, "loading", False)
             if os.path.isfile(os.path.expanduser("~")+"/.local/share/applications/feren-ice-ssb-"+package.split("feren-ice-ssb-")[1]+".desktop"):
-                self.change_button_state("installed", False)
+                GLib.idle_add(self.change_button_state, "installed", False)
             else:
-                self.change_button_state("uninstalled", False)
+                GLib.idle_add(self.change_button_state, "uninstalled", False)
                 if self.sources_visible:
-                    self.app_source_dropdown.set_visible(True)
+                    GLib.idle_add(self.app_source_dropdown_box.set_visible, True)
                 
     def on_installer_finished(self, package):
         #thread = Thread(target=self._on_installer_finished,
@@ -1104,7 +1123,6 @@ class AppView(WebKit2.WebView):
         app.update_page('#image3', 'src', app_image3)
             
     def packagepagestuff(self):
-        classnetwork.AppDetailsHeader.app_source_dropdown.set_visible(False)
         packagetoview = app.current_page.split('packagepage.html?package=')[1]
 
         if packagetoview != self.current_package:

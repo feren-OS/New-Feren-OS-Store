@@ -1,0 +1,15 @@
+#!/bin/bash
+### Feren Store Man-In-The-Middle - checks for flatpak, and if isn't installed, it prompts to install it.
+
+if [ ! -f /usr/bin/flatpak ]; then
+    read -p "Flatpak Application Sources aren't currently enabled, would you like to enable it? [y/N] " yn
+    case $yn in
+        [Yy]* ) sudo apt install flatpak -y || exit 1;;
+        * ) exit 1;;
+    esac
+    /usr/bin/flatpak $@
+    exit $?
+else
+    /usr/bin/flatpak $@
+    exit $?
+fi

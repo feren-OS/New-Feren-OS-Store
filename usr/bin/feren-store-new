@@ -184,6 +184,26 @@ class ApplicationSourceTranslator():
         else:
             return appsourceintname
         #TODO: Add more
+
+
+####Get icon of any size
+class RetrieveIconSize():
+    #Credits to Linux Mint for this code
+    def set_icon_string(icon_string, width):
+        theme = Gtk.IconTheme.get_default()
+        scalefactor = Gtk.Image().get_scale_factor()
+
+        icon_width = width * scalefactor
+
+        if theme.has_icon(icon_string):
+            info = theme.lookup_icon_for_scale(icon_string,
+                                               width,
+                                               scalefactor,
+                                               Gtk.IconLookupFlags.FORCE_SIZE)
+            if info:
+                return(info.get_filename())
+            
+            return(RetrieveIconSize().set_icon_string(FALLBACK_PACKAGE_ICON_PATH, self.icon_width, self.icon_width))
    
 
 ####Global Variables
@@ -198,21 +218,6 @@ class GlobalVariables(object):
 ####Application Playlists
 #class ApplicationPlaylists():
     #TODO: Add Import and Export code
-    
-
-####Package Managers checker - check that the package managers are present
-class CheckPackageManagers():
-    def check_snap():
-        if os.path.isfile("/usr/bin/snap"):
-            return True
-        else:
-            return False
-    
-    def check_flatpak():
-        if os.path.isfile("/usr/bin/flatpak"):
-            return True
-        else:
-            return False
         
     
 ####GSettings Management - get and set values
@@ -1308,6 +1313,7 @@ class AppView(WebKit2.WebView):
         uri = str(self.get_uri())
         #By making this only run on a fully loaded page we prevent this thing running multiple times in one page load
         if self.get_estimated_load_progress() == 1.0:
+            self.headerstack.set_visible_child(self.header)
             app.current_page = uri.rsplit('/', 1)[1]
             self._push_config()
 
@@ -1560,14 +1566,25 @@ class StoreWindow(object):
         #systemstate.first_run = self._check_first_run()
         #systemstate.first_run = True
 
-        #self.json_path = self._data_path + "/config/packages.json"
-
         self._start_page = 'home.html'
         #TODO: Add redirect to package page if jump_to_package is True
         
         classnetwork.StoreWindow = self
 
         self._build_app()
+
+    def build_app_post_splashscreen(self, mainwindow, mv):
+        GLib.idle_add(self._build_app_post_splashscreen, mainwindow, mv)
+
+    def _build_app_post_splashscreen(self, mainwindow, mv):
+        # build rest of window
+        box_application_header = AppDetailsHeader()
+        mainwindow.pack_start(box_application_header, False, True, 0)
+        box_application_header.set_visible(False)
+        box_application_header.parent_window = self.w
+        file = os.path.abspath(os.path.join("/usr/share/feren-store-new/"+self._start_page))
+        uri = 'file://' + urllib.request.pathname2url(file)
+        mv.load_uri(uri)
 
     def _build_app(self):
         # build window
@@ -1611,7 +1628,6 @@ class StoreWindow(object):
         
         self.gohome_btn = Gtk.ToggleButton(label=("Home"))
         self.gohome_btn.set_name("gohome-btn")
-        self.gohome_btn.set_active(True)
         self.gohome_handle_id = self.gohome_btn.connect("clicked", self._gohome_pressed)
         
         self.goapps_btn = Gtk.ToggleButton(label=("Applications"))
@@ -1636,9 +1652,12 @@ class StoreWindow(object):
         maintoolbarcontents = Gtk.ToolItem()
         maintoolbarcontents.set_expand(True)
         maintoolbar.insert(maintoolbarcontents, 0)
+        headerstack = Gtk.Stack()
+        headerstack.add_named(Gtk.Box(), "empty")
         header = Gtk.Box()
+        headerstack.add_named(header, "header")
         #maintoolbarcontents.set_border_width(2)
-        maintoolbarcontents.add(header)
+        maintoolbarcontents.add(headerstack)
         header.set_spacing(6)
         toolbarspacer=Gtk.Alignment()
         
@@ -1754,6 +1773,21 @@ class StoreWindow(object):
         nfpage_box.pack_start(nfpagelabel, False, False, 5)
         nfpage_box.pack_end(nfpagelabel2, False, False, 5)
         self.nfpage.set_center_widget(nfpage_box)
+
+        # build splash screen
+        self.splashscreen = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        store_splashimg = Gtk.Image()
+        iconpath = RetrieveIconSize.set_icon_string("softwarecenter", 128)
+        store_splashimg.set_from_pixbuf(GdkPixbuf.Pixbuf.new_from_file(iconpath))
+        store_ferenimg = Gtk.Image()
+        store_ferenimgpixbuf = GdkPixbuf.Pixbuf.new_from_file("/usr/share/feren-store-new/splashlogo.png")
+        store_ferenimg.set_from_pixbuf(store_ferenimgpixbuf)
+        self.splashscreen.pack_start(Gtk.Box(), True, False, 0)
+        self.splashscreen.pack_start(store_splashimg, False, False, 0)
+        self.splashscreen.pack_start(Gtk.Box(), True, False, 0)
+        self.splashscreen.pack_start(store_ferenimg, False, False, 0)
+        self.splashscreen.set_margin_bottom(44)
+        self.splashscreen.set_margin_top(44)
         
         
         # build webkit container
@@ -1762,14 +1796,10 @@ class StoreWindow(object):
         mv.set_zoom_level(1.0)
 
         mv.back_btn = back_btn
+        mv.header = header
+        mv.headerstack = headerstack
         
         #handle_id is needed to block events as otherwise the button active state changes cause button press events to occur (for whatever stupid reason) which ultimately leads to a Stack Overflow as the event code retriggers the event by triggering the button press yet again looping the cycle indefinitely
-
-        # load our index file
-        #file = os.path.abspath(os.path.join(translations.get_pages_path(), self._start_page))
-        file = os.path.abspath(os.path.join("/usr/share/feren-store-new/"+self._start_page))
-        uri = 'file://' + urllib.request.pathname2url(file)
-        mv.load_uri(uri)
 
         # build scrolled window widget and add our appview stack
         sw = Gtk.ScrolledWindow()
@@ -1782,6 +1812,7 @@ class StoreWindow(object):
         
         self.pages = Gtk.Stack()
         self.pages.get_style_context().add_class(Gtk.STYLE_CLASS_VIEW)
+        self.pages.add_named(self.splashscreen, "splashscreen")
         self.pages.add_named(mv, "webkit")
         self.pages.add_named(sw2, "tasks")
         self.pages.add_named(self.nfpage, "404")
@@ -1797,11 +1828,10 @@ class StoreWindow(object):
         b = Gtk.Box(homogeneous=False, spacing=0)
         b.pack_start(sw, expand=True, fill=True, padding=0)
         
-        box_application_header = AppDetailsHeader()
+        
 
         # add the box to the parent window and show
         mainwindow.pack_start(maintoolbar, False, True, 0)
-        mainwindow.pack_start(box_application_header, False, True, 0)
         mainwindow.pack_end(b, True, True, 0)
         self.w.add(mainwindow)
         
@@ -1815,8 +1845,10 @@ class StoreWindow(object):
         mv.sw2 = sw2
         mv.pages = self.pages
         
-        box_application_header.set_visible(False)
-        box_application_header.parent_window = self.w
+        thread = Thread(target=self.build_app_post_splashscreen,
+                        args=(mainwindow, mv))
+        thread.daemon = True
+        thread.start()
 
     def run(self):
         signal.signal(signal.SIGINT, signal.SIG_DFL)

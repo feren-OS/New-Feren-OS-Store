@@ -1,0 +1,15 @@
+#!/bin/bash
+### Feren Store Man-In-The-Middle - checks for snap, and if isn't installed, it prompts to install it.
+
+if [ ! -f /usr/bin/snap ]; then
+    read -p "The Snap Application Source isn't currently enabled, would you like to enable it? [y/N] " yn
+    case $yn in
+        [Yy]* ) sudo apt install snapd -y || exit 1;;
+        * ) exit 1;;
+    esac
+    /usr/bin/snap $@
+    exit $?
+else
+    /usr/bin/snap $@
+    exit $?
+fi

@@ -1236,7 +1236,7 @@ class AppView(WebKit2.WebView):
             
             self.pages.set_visible_child(self.sw2)
         else:
-            self.pages.set_visible_child(app.webkit)
+            self.pages.set_visible_child(self.sw)
         if current_page == 'home.html' or current_page.startswith('recommendations.html'):
             classnetwork.StoreWindow.gohome_btn.handler_block(classnetwork.StoreWindow.gohome_handle_id)
             classnetwork.StoreWindow.gohome_btn.set_active(True)
@@ -1313,7 +1313,7 @@ class AppView(WebKit2.WebView):
         uri = str(self.get_uri())
         #By making this only run on a fully loaded page we prevent this thing running multiple times in one page load
         if self.get_estimated_load_progress() == 1.0:
-            self.headerstack.set_visible_child(self.header)
+            self.mainwindowstack.set_visible_child(self.mainwindow)
             app.current_page = uri.rsplit('/', 1)[1]
             self._push_config()
 
@@ -1573,18 +1573,22 @@ class StoreWindow(object):
 
         self._build_app()
 
-    def build_app_post_splashscreen(self, mainwindow, mv):
-        GLib.idle_add(self._build_app_post_splashscreen, mainwindow, mv)
+    def build_app_post_splashscreen(self, mainwindow, maintoolbar, mv, b):
+        GLib.idle_add(self._build_app_post_splashscreen, mainwindow, maintoolbar, mv, b)
 
-    def _build_app_post_splashscreen(self, mainwindow, mv):
+    def _build_app_post_splashscreen(self, mainwindow, maintoolbar, mv, b):
         # build rest of window
         box_application_header = AppDetailsHeader()
-        mainwindow.pack_start(box_application_header, False, True, 0)
         box_application_header.set_visible(False)
         box_application_header.parent_window = self.w
+        # add the box to the parent window and show
+        mainwindow.pack_start(maintoolbar, False, True, 0)
+        mainwindow.pack_start(box_application_header, False, True, 0)
+        mainwindow.pack_end(b, True, True, 0)
         file = os.path.abspath(os.path.join("/usr/share/feren-store-new/"+self._start_page))
         uri = 'file://' + urllib.request.pathname2url(file)
         mv.load_uri(uri)
+        self.w.show_all()
 
     def _build_app(self):
         # build window
@@ -1642,6 +1646,9 @@ class StoreWindow(object):
         self.gowebsites_btn.set_name("gowebsites-btn")
         self.gowebsites_handle_id = self.gowebsites_btn.connect("clicked", self._gowebsites_pressed)
         
+        #For the splash screen
+        mainwindowstack = Gtk.Stack()
+        mainwindowstack.set_transition_type(Gtk.StackTransitionType.CROSSFADE)
 
         #Use a titlebar-toolbar approach
         mainwindow = Gtk.VBox()
@@ -1652,12 +1659,9 @@ class StoreWindow(object):
         maintoolbarcontents = Gtk.ToolItem()
         maintoolbarcontents.set_expand(True)
         maintoolbar.insert(maintoolbarcontents, 0)
-        headerstack = Gtk.Stack()
-        headerstack.add_named(Gtk.Box(), "empty")
         header = Gtk.Box()
-        headerstack.add_named(header, "header")
         #maintoolbarcontents.set_border_width(2)
-        maintoolbarcontents.add(headerstack)
+        maintoolbarcontents.add(header)
         header.set_spacing(6)
         toolbarspacer=Gtk.Alignment()
         
@@ -1789,6 +1793,8 @@ class StoreWindow(object):
         self.splashscreen.set_margin_bottom(44)
         self.splashscreen.set_margin_top(44)
         
+        mainwindowstack.add_named(self.splashscreen, "splashscreen")
+        mainwindowstack.add_named(mainwindow, "window")
         
         # build webkit container
         mv = AppView()
@@ -1797,7 +1803,6 @@ class StoreWindow(object):
 
         mv.back_btn = back_btn
         mv.header = header
-        mv.headerstack = headerstack
         
         #handle_id is needed to block events as otherwise the button active state changes cause button press events to occur (for whatever stupid reason) which ultimately leads to a Stack Overflow as the event code retriggers the event by triggering the button press yet again looping the cycle indefinitely
 
@@ -1812,8 +1817,7 @@ class StoreWindow(object):
         
         self.pages = Gtk.Stack()
         self.pages.get_style_context().add_class(Gtk.STYLE_CLASS_VIEW)
-        self.pages.add_named(self.splashscreen, "splashscreen")
-        self.pages.add_named(mv, "webkit")
+        self.pages.add_named(sw, "webkit")
         self.pages.add_named(sw2, "tasks")
         self.pages.add_named(self.nfpage, "404")
         taskspage.set_margin_bottom(8)
@@ -1821,32 +1825,31 @@ class StoreWindow(object):
         taskspage.set_margin_left(10)
         taskspage.set_margin_right(10)
         
-        sw.add(self.pages)
+        sw.add(mv)
         sw2.add(taskspage)
 
         # build a an autoexpanding box and add our scrolled window
         b = Gtk.Box(homogeneous=False, spacing=0)
-        b.pack_start(sw, expand=True, fill=True, padding=0)
+        b.pack_start(self.pages, expand=True, fill=True, padding=0)
         
-        
-
-        # add the box to the parent window and show
-        mainwindow.pack_start(maintoolbar, False, True, 0)
-        mainwindow.pack_end(b, True, True, 0)
-        self.w.add(mainwindow)
+        self.w.add(mainwindowstack)
         
         self.w.connect('delete-event', self.close)
-        self.w.show_all()
 
         self._window = self.w
         self.webkit = mv
+
+        self.w.show_all()
         
         #Add more variables to mv
+        mv.sw = sw
         mv.sw2 = sw2
         mv.pages = self.pages
+        mv.mainwindow = mainwindow
+        mv.mainwindowstack = mainwindowstack
         
         thread = Thread(target=self.build_app_post_splashscreen,
-                        args=(mainwindow, mv))
+                        args=(mainwindow, maintoolbar, mv, b))
         thread.daemon = True
         thread.start()
 

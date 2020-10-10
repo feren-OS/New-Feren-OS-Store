@@ -254,9 +254,16 @@ class PackageTile(Gtk.Button):
         iconobj.set_from_pixbuf(icon_pixbuf)
 
     def __init__(self, packagename, packagetype):
+        classnetwork.TasksMgmt.candirecttopkg = True
         Gtk.Button.__init__(self)
 
         app_title, app_desc, app_iconurl = classnetwork.JSONReader.getPackageInfo(packagename, packagetype)
+        if (app_title, app_desc, app_iconurl) == (None, None, None):
+            if packagetype == "apt": #Assume it's a DEB file, though TODO change this to match for unknown packages that aren't DEBs as well if this ever supports showing all packages
+                app_title, app_desc, app_iconurl = classnetwork.AppView._deb.pkgname, "Package File", "file://"+RetrieveIconSize.set_icon_string("application-x-deb", 256)
+                classnetwork.TasksMgmt.candirecttopkg = False
+            else:
+                raise Exception("Couldn't get metadata for tile for", packagename, packagetype)
 
         label_name = Gtk.Label(app_title, xalign=0)
         label_name.get_style_context().add_class("14scale")
@@ -304,6 +311,7 @@ class TasksMgmt(object):
         self.dontcontinue = False
         self.inaction = False
         self.existingwidgets = []
+        self.candirecttopkg = True
         
         GObject.threads_init()
         
@@ -345,6 +353,9 @@ class TasksMgmt(object):
             if task.startswith('apt:inst:'):
                 packagenm = task.split('apt:inst:')[1]
                 tile = PackageTile(packagenm, "apt")
+            elif task.startswith('aptdeb:inst:'):
+                packagenm = task.split('aptdeb:inst:')[1]
+                tile = PackageTile(packagenm, "apt")
             elif task.startswith('apt:upgr:'):
                 packagenm = task.split('apt:upgr:')[1]
                 tile = PackageTile(packagenm, "apt")
@@ -366,7 +377,9 @@ class TasksMgmt(object):
             elif task.startswith('snap:rm:'):
                 packagenm = task.split('snap:rm:')[1]
                 tile = PackageTile(packagenm, "snap")
-            tile.connect("clicked", classnetwork.AppView._btn_goto_packageview, packagenm)
+            
+            if not task.startswith('aptdeb:inst:') and self.candirecttopkg == True:
+                tile.connect("clicked", classnetwork.AppView._btn_goto_packageview, packagenm)
 
             box = Gtk.FlowBoxChild(child=tile)
             box.show_all()
@@ -398,7 +411,11 @@ class TasksMgmt(object):
             while classnetwork.APTMgmt.changesinaction == True:
                 pass
 
-            classnetwork.APTMgmt.run_transaction(classnetwork.JSONReader.getNameFromInternal(task.split('apt:inst:')[1], "apt"), "install")
+            package = classnetwork.JSONReader.getNameFromInternal(task.split('apt:inst:')[1], "apt")
+            if package == None:
+                package = task.split('apt:inst:')[1]
+
+            classnetwork.APTMgmt.run_transaction(package, "install")
 
             self.currenttasks.remove(task)
             self.currenttask = ""
@@ -408,19 +425,41 @@ class TasksMgmt(object):
                 classnetwork.import_snap()
             if classnetwork.JSONReader.getNameFromInternal(task.split('apt:inst:')[1], "apt") == "flatpak":
                 classnetwork.import_flatpak()
+        elif task.startswith("aptdeb:inst:"):
+            while classnetwork.APTMgmt.changesinaction == True:
+                pass
+
+            classnetwork.APTMgmt.run_transaction(task.split('aptdeb:inst:')[1], "install")
+
+            self.currenttasks.remove(task)
+            self.currenttask = ""
+
+            #Import the Snap and Flatpak modules (or make them unimported) depending on the state of snapd and flatpak
+            if classnetwork.JSONReader.getNameFromInternal(task.split('aptdeb:inst:')[1], "apt") == "snapd":
+                classnetwork.import_snap()
+            if classnetwork.JSONReader.getNameFromInternal(task.split('aptdeb:inst:')[1], "apt") == "flatpak":
+                classnetwork.import_flatpak()
         elif task.startswith("apt:upgr:"):
             while classnetwork.APTMgmt.changesinaction == True:
                 pass
+
+            package = classnetwork.JSONReader.getNameFromInternal(task.split('apt:upgr:')[1], "apt")
+            if package == None:
+                package = task.split('apt:upgr:')[1]
             
-            classnetwork.APTMgmt.run_transaction(classnetwork.JSONReader.getNameFromInternal(task.split('apt:upgr:')[1], "apt"), "upgrade")
+            classnetwork.APTMgmt.run_transaction(package, "upgrade")
 
             self.currenttasks.remove(task)
             self.currenttask = ""
         elif task.startswith("apt:rm:"):
             while classnetwork.APTMgmt.changesinaction == True:
                 pass
+
+            package = classnetwork.JSONReader.getNameFromInternal(task.split('apt:rm:')[1], "apt")
+            if package == None:
+                package = task.split('apt:rm:')[1]
             
-            classnetwork.APTMgmt.run_transaction(classnetwork.JSONReader.getNameFromInternal(task.split('apt:rm:')[1], "apt"), "remove")
+            classnetwork.APTMgmt.run_transaction(package, "remove")
             
             self.currenttasks.remove(task)
             self.currenttask = ""
@@ -433,48 +472,72 @@ class TasksMgmt(object):
         elif task.startswith("flatpak:inst:"):
             while classnetwork.FlatpakMgmt.changesinaction == True:
                 pass
+
+            package = classnetwork.JSONReader.getNameFromInternal(task.split('flatpak:inst:')[1], "flatpak")
+            if package == None:
+                package = task.split('flatpak:inst:')[1]
             
-            classnetwork.FlatpakMgmt.run_transaction(classnetwork.JSONReader.getNameFromInternal(task.split('flatpak:inst:')[1], "flatpak"), classnetwork.JSONReader.availablesources[task.split('flatpak:inst:')[1]]["flatpak"].split("flatpak-")[1], "install")
+            classnetwork.FlatpakMgmt.run_transaction(package, classnetwork.JSONReader.availablesources[task.split('flatpak:inst:')[1]]["flatpak"].split("flatpak-")[1], "install")
 
             self.currenttasks.remove(task)
             self.currenttask = ""
         elif task.startswith("flatpak:upgr:"):
             while classnetwork.FlatpakMgmt.changesinaction == True:
                 pass
+
+            package = classnetwork.JSONReader.getNameFromInternal(task.split('flatpak:upgr:')[1], "flatpak")
+            if package == None:
+                package = task.split('flatpak:upgr:')[1]
             
-            classnetwork.FlatpakMgmt.run_transaction(classnetwork.JSONReader.getNameFromInternal(task.split('flatpak:upgr:')[1], "flatpak"), classnetwork.JSONReader.availablesources[task.split('flatpak:upgr:')[1]]["flatpak"].split("flatpak-")[1], "upgrade")
+            classnetwork.FlatpakMgmt.run_transaction(package, classnetwork.JSONReader.availablesources[task.split('flatpak:upgr:')[1]]["flatpak"].split("flatpak-")[1], "upgrade")
 
             self.currenttasks.remove(task)
             self.currenttask = ""
         elif task.startswith("flatpak:rm:"):
             while classnetwork.FlatpakMgmt.changesinaction == True:
                 pass
+
+            package = classnetwork.JSONReader.getNameFromInternal(task.split('flatpak:rm:')[1], "flatpak")
+            if package == None:
+                package = task.split('flatpak:rm:')[1]
             
-            classnetwork.FlatpakMgmt.run_transaction(classnetwork.JSONReader.getNameFromInternal(task.split('flatpak:rm:')[1], "flatpak"), classnetwork.JSONReader.availablesources[task.split('flatpak:rm:')[1]]["flatpak"].split("flatpak-")[1], "remove")
+            classnetwork.FlatpakMgmt.run_transaction(package, classnetwork.JSONReader.availablesources[task.split('flatpak:rm:')[1]]["flatpak"].split("flatpak-")[1], "remove")
             
             self.currenttasks.remove(task)
             self.currenttask = ""
         elif task.startswith("snap:inst:"):
             while classnetwork.SnapMgmt.changesinaction == True:
                 pass
+
+            package = classnetwork.JSONReader.getNameFromInternal(task.split('snap:inst:')[1], "snap")
+            if package == None:
+                package = task.split('snap:inst:')[1]
             
-            classnetwork.SnapMgmt.run_transaction(classnetwork.JSONReader.getNameFromInternal(task.split('snap:inst:')[1], "snap"), "install")
+            classnetwork.SnapMgmt.run_transaction(package, "install")
 
             self.currenttasks.remove(task)
             self.currenttask = ""
         elif task.startswith("snap:upgr:"):
             while classnetwork.SnapMgmt.changesinaction == True:
                 pass
+
+            package = classnetwork.JSONReader.getNameFromInternal(task.split('snap:upgr:')[1], "snap")
+            if package == None:
+                package = task.split('snap:upgr:')[1]
             
-            classnetwork.SnapMgmt.run_transaction(classnetwork.JSONReader.getNameFromInternal(task.split('snap:upgr:')[1], "snap"), "upgrade")
+            classnetwork.SnapMgmt.run_transaction(package, "upgrade")
 
             self.currenttasks.remove(task)
             self.currenttask = ""
         elif task.startswith("snap:rm:"):
             while classnetwork.SnapMgmt.changesinaction == True:
                 pass
+
+            package = classnetwork.JSONReader.getNameFromInternal(task.split('snap:rm:')[1], "snap")
+            if package == None:
+                package = task.split('snap:rm:')[1]
             
-            classnetwork.SnapMgmt.run_transaction(classnetwork.JSONReader.getNameFromInternal(task.split('snap:rm:')[1], "snap"), "remove")
+            classnetwork.SnapMgmt.run_transaction(package, "remove")
             
             self.currenttasks.remove(task)
             self.currenttask = ""
@@ -737,6 +800,11 @@ class AppDetailsHeader(Gtk.Box):
             if os.path.isfile("/usr/bin/brave-browser"):
                 iface_list_store.append(["Brave"])
                 amount_of_sources += 1
+        elif package == "debfile":
+            friendlysourcename = ApplicationSourceTranslator().TranslateToHumanReadable("standard")
+            if friendlysourcename:
+                iface_list_store.append([friendlysourcename])
+                amount_of_sources += 1
         else:
             GLib.idle_add(self.sources_label_stack.set_visible_child, self.sources_label_package)
             #Using the JSON Data from sources/packages.json, populate the sources dropdown according to what's available
@@ -848,7 +916,9 @@ class AppDetailsHeader(Gtk.Box):
         thread.start()
         
     def on_source_dropdown_changed(self, combobox):
-        if self.current_package_type != "ice":
+        if self.current_package == "debfile":
+            self.current_package_type = "apt"
+        elif self.current_package_type != "ice":
             self.current_package_type = classnetwork.JSONReader.availablesources[self.current_package]["order-of-importance"][combobox.get_active()]
         self.switch_source(self.current_package, self.current_package_type, False)
 
@@ -871,74 +941,116 @@ class AppDetailsHeader(Gtk.Box):
 
         #Get the state of the package for changing the buttons presented to the user accordingly - is it installed? does it need an update?
         #packagetype is whether it's native, snap, ice or flatpak
-        if self.current_package_type != "ice":
+        if self.current_package_type != "ice" and self.current_package != "debfile":
             mgmtpkgname = classnetwork.JSONReader.getNameFromInternal(package, self.current_package_type)
         GLib.idle_add(self.change_button_state, "loading", False)
-        if self.current_package_type == "apt":
-            if ("apt:inst:"+package in classnetwork.TasksMgmt.currenttasks or "apt:upgr:"+package in classnetwork.TasksMgmt.currenttasks or "apt:rm:"+package in classnetwork.TasksMgmt.currenttasks) and not (classnetwork.TasksMgmt.currenttask.startswith("apt:") and classnetwork.TasksMgmt.currenttask.endswith(":"+package)):
-                GLib.idle_add(self.change_button_state, "queued", False)
-            elif classnetwork.TasksMgmt.currenttask.startswith("apt:") and classnetwork.TasksMgmt.currenttask.endswith(":"+package):
+        if self.current_package_type == "apt" and self.current_package != "debfile":
+            if classnetwork.TasksMgmt.currenttask.startswith("apt:") and classnetwork.TasksMgmt.currenttask.endswith(":"+package):
                 GLib.idle_add(self.change_button_state, "busy", False)
+                return
+            elif ("apt:inst:"+package in classnetwork.TasksMgmt.currenttasks or "apt:upgr:"+package in classnetwork.TasksMgmt.currenttasks or "apt:rm:"+package in classnetwork.TasksMgmt.currenttasks) and not (classnetwork.TasksMgmt.currenttask.startswith("apt:") and classnetwork.TasksMgmt.currenttask.endswith(":"+package)):
+                GLib.idle_add(self.change_button_state, "queued", False)
+                return
             ifinstalled = APTChecks.checkinstalled(mgmtpkgname)
             if self.current_package == package:
                 if ifinstalled == 1: #TODO: Change blacklisting of Remove functionality to if the package is in a list of them
                     GLib.idle_add(self.change_button_state, "installed", mgmtpkgname == "feren-store")
+                    return
                 elif ifinstalled == 3:
                     GLib.idle_add(self.change_button_state, "updatable", mgmtpkgname == "feren-store")
+                    return
                 elif ifinstalled == 404: #TODO: Move this to if it can't find any usable sources
                     print("Cannot find", mgmtpkgname)
                     GLib.idle_add(classnetwork.StoreWindow.pages.set_visible_child, classnetwork.StoreWindow.nfpage)
                     GLib.idle_add(self.hide)
+                    return
                 else:
-                    if APTChecks.checkneedsrepo(mgmtpkgname) != []:
+                    if ifinstalled != 404 and APTChecks.checkneedsrepo(mgmtpkgname) != []:
                         GLib.idle_add(self.change_button_state, "sourcemissing", mgmtpkgname == "feren-store")
+                        return
                     else:
                         GLib.idle_add(self.change_button_state, "uninstalled", False)
+                        return
+        elif self.current_package_type == "apt" and self.current_package == "debfile":
+            mgmtpkgname = classnetwork.AppView._deb.pkgname
+            if "aptdeb:inst:"+sys.argv[1] == classnetwork.TasksMgmt.currenttask or "apt:upgr:"+mgmtpkgname == classnetwork.TasksMgmt.currenttask or "apt:rm:"+mgmtpkgname == classnetwork.TasksMgmt.currenttask:
+                GLib.idle_add(self.change_button_state, "busy", False)
+                return
+            elif "aptdeb:inst:"+sys.argv[1] in classnetwork.TasksMgmt.currenttasks or "apt:upgr:"+mgmtpkgname in classnetwork.TasksMgmt.currenttasks or "apt:rm:"+mgmtpkgname in classnetwork.TasksMgmt.currenttasks:
+                GLib.idle_add(self.change_button_state, "queued", False)
+                return
+            ifinstalled = APTChecks.checkinstalled(mgmtpkgname)
+            if self.current_package == package:
+                if ifinstalled == 1: #TODO: Change blacklisting of Remove functionality to if the package is in a list of them
+                    GLib.idle_add(self.change_button_state, "installed", mgmtpkgname == "feren-store")
+                    return
+                elif ifinstalled == 3:
+                    GLib.idle_add(self.change_button_state, "updatable", mgmtpkgname == "feren-store")
+                    return
+                else:
+                    if ifinstalled != 404 and APTChecks.checkneedsrepo(mgmtpkgname) != []: #TODO: Make checkneedsrepo support DEBs
+                        GLib.idle_add(self.change_button_state, "sourcemissing", mgmtpkgname == "feren-store")
+                        return
+                    else:
+                        GLib.idle_add(self.change_button_state, "uninstalled", False)
+                        return
+        
         
         elif self.current_package_type == "snap":
-            if ("snap:inst:"+package in classnetwork.TasksMgmt.currenttasks or "snap:upgr:"+package in classnetwork.TasksMgmt.currenttasks or "snap:rm:"+package in classnetwork.TasksMgmt.currenttasks) and not (classnetwork.TasksMgmt.currenttask.startswith("snap:") and classnetwork.TasksMgmt.currenttask.endswith(":"+package)):
-                GLib.idle_add(self.change_button_state, "queued", False)
-            elif classnetwork.TasksMgmt.currenttask.startswith("snap:") and classnetwork.TasksMgmt.currenttask.endswith(":"+package):
+            if classnetwork.TasksMgmt.currenttask.startswith("snap:") and classnetwork.TasksMgmt.currenttask.endswith(":"+package):
                 GLib.idle_add(self.change_button_state, "busy", False)
+                return
+            elif ("snap:inst:"+package in classnetwork.TasksMgmt.currenttasks or "snap:upgr:"+package in classnetwork.TasksMgmt.currenttasks or "snap:rm:"+package in classnetwork.TasksMgmt.currenttasks) and not (classnetwork.TasksMgmt.currenttask.startswith("snap:") and classnetwork.TasksMgmt.currenttask.endswith(":"+package)):
+                GLib.idle_add(self.change_button_state, "queued", False)
+                return
             if classnetwork.snapmgmtimported == True:
                 ifinstalled = classnetwork.SnapChecks.checkinstalled(mgmtpkgname)
                 if self.current_package == package:
                     if ifinstalled == 1:
                         GLib.idle_add(self.change_button_state, "installed", False)
+                        return
                     else:
                         GLib.idle_add(self.change_button_state, "uninstalled", False)
+                        return
             else:
                 GLib.idle_add(self.change_button_state, "sourcemissing", False)
+                return
         
         elif self.current_package_type == "flatpak":
-            if ("flatpak:inst:"+package in classnetwork.TasksMgmt.currenttasks or "flatpak:upgr:"+package in classnetwork.TasksMgmt.currenttasks or "flatpak:rm:"+package in classnetwork.TasksMgmt.currenttasks) and not (classnetwork.TasksMgmt.currenttask.startswith("flatpak:") and classnetwork.TasksMgmt.currenttask.endswith(":"+package)):
-                GLib.idle_add(self.change_button_state, "queued", False)
-            elif classnetwork.TasksMgmt.currenttask.startswith("flatpak:") and classnetwork.TasksMgmt.currenttask.endswith(":"+package):
+            if classnetwork.TasksMgmt.currenttask.startswith("flatpak:") and classnetwork.TasksMgmt.currenttask.endswith(":"+package):
                 GLib.idle_add(self.change_button_state, "busy", False)
+                return
+            elif ("flatpak:inst:"+package in classnetwork.TasksMgmt.currenttasks or "flatpak:upgr:"+package in classnetwork.TasksMgmt.currenttasks or "flatpak:rm:"+package in classnetwork.TasksMgmt.currenttasks) and not (classnetwork.TasksMgmt.currenttask.startswith("flatpak:") and classnetwork.TasksMgmt.currenttask.endswith(":"+package)):
+                GLib.idle_add(self.change_button_state, "queued", False)
+                return
             if classnetwork.flatpakmgmtimported == True:
                 ifinstalled = classnetwork.FlatpakChecks.checkinstalled(mgmtpkgname, False) #TODO: Add userland Flatpak support (the 'False' = System-wide)
                 if self.current_package == package:
-                    if ifinstalled == 1:
+                    if ifinstalled == 1 or ifinstalled == 3:
                         GLib.idle_add(self.change_button_state, "installed", False)
-                    elif ifinstalled == 3:
-                        GLib.idle_add(self.change_button_state, "updatable", False)
+                        return
                     else:
                         if classnetwork.FlatpakChecks.checkneedsrepo(mgmtpkgname, classnetwork.JSONReader.availablesources[package]["flatpak"].split("flatpak-")[1], False) != []:
                             GLib.idle_add(self.change_button_state, "sourcemissing", False)
+                            return
                         else:
                             GLib.idle_add(self.change_button_state, "uninstalled", False)
+                            return
             else:
                 GLib.idle_add(self.change_button_state, "sourcemissing", False)
+                return
 
         elif self.current_package_type == "ice":
             GLib.idle_add(self.app_source_dropdown_box.set_visible, False)
             GLib.idle_add(self.change_button_state, "loading", False)
             if os.path.isfile(os.path.expanduser("~")+"/.local/share/applications/feren-ice-ssb-"+package.split("feren-ice-ssb-")[1]+".desktop"):
                 GLib.idle_add(self.change_button_state, "installed", False)
+                return
             else:
                 GLib.idle_add(self.change_button_state, "uninstalled", False)
                 if self.sources_visible:
                     GLib.idle_add(self.app_source_dropdown_box.set_visible, True)
+                return
                 
     def on_installer_finished(self, package):
         #thread = Thread(target=self._on_installer_finished,
@@ -963,7 +1075,10 @@ class AppDetailsHeader(Gtk.Box):
         #When you press 'Install'
         self.change_button_state("loading", False)
         if self.current_package_type == "apt":
-            self.APTMgmt.install_package(self.current_package)
+            if self.current_package == "debfile":
+                self.APTMgmt.install_package(sys.argv[1])
+            else:
+                self.APTMgmt.install_package(self.current_package)
         elif self.current_package_type == "snap":
             classnetwork.SnapMgmt.install_package(self.current_package)
         elif self.current_package_type == "flatpak":
@@ -1033,6 +1148,8 @@ class AppView(WebKit2.WebView):
         self.back_signal_handler = None
         
         self.current_package = ""
+
+        self._deb = None
     
         
     def on_load_status_change(download, status):
@@ -1155,6 +1272,8 @@ class AppView(WebKit2.WebView):
         #Update in-page items
         if packagename.startswith("feren-ice-ssb-"):
             app_description, app_author, app_bugreporturl, app_website, app_donation, app_tos, app_privpol, app_category, app_image1, app_image2, app_image3 = classnetwork.JSONReader.getPackageSiteInfo(packagename.split("feren-ice-ssb-")[1], "ice")
+        elif packagename == ("debfile"):
+            app_description, app_author, app_bugreporturl, app_website, app_donation, app_tos, app_privpol, app_category, app_image1, app_image2, app_image3 = self._deb["Description"], self._deb["Maintainer"], None, self._deb["Homepage"], None, None, None, None, None, None, None
         else:
             app_description, app_author, app_bugreporturl, app_website, app_donation, app_tos, app_privpol, app_category, app_image1, app_image2, app_image3 = classnetwork.JSONReader.getPackageSiteInfo(packagename, packagetype)
         
@@ -1183,7 +1302,11 @@ class AppView(WebKit2.WebView):
                 classnetwork.AppDetailsHeader.set_package_type("ice")
 
             elif packagetoview == "debfile":
-                pass
+                import apt.debfile
+                self._deb = apt.debfile.DebPackage(sys.argv[1], None)
+                app_title, app_desc, app_iconurl = self._deb.pkgname, "Package File", "file://"+RetrieveIconSize.set_icon_string("application-x-deb", 256)
+                classnetwork.AppDetailsHeader.set_app_details(app_title, app_desc)
+                classnetwork.AppDetailsHeader.set_package_type("apt")
 
             else:
                 app_title, app_desc, app_iconurl = classnetwork.JSONReader.getPackageInfo(packagetoview, classnetwork.JSONReader.availablesources[packagetoview]["order-of-importance"][0])

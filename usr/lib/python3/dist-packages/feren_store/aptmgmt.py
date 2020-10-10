@@ -65,20 +65,34 @@ class APTMgmt():
         packagestoupgrade = []
         packagestoremove = []
         apt_cache = apt.Cache()
-        package2 = self.classnetwork.JSONReader.getNameFromInternal(package, "apt")
-        if operationtype == "install":
-            apt_cache[package2].mark_install(True)
-        elif operationtype == "upgrade":
-            apt_cache[package2].mark_upgrade(True)
-        elif operationtype == "remove":
-            apt_cache[package2].mark_delete(True)
-        for item in apt_cache:
-            if apt_cache[item.name].marked_install:
-                packagestoinstall.append(self.classnetwork.JSONReader.getInternalFromName(item.name, "apt"))
-            elif apt_cache[item.name].marked_upgrade:
-                packagestoupgrade.append(self.classnetwork.JSONReader.getInternalFromName(item.name, "apt"))
-            elif apt_cache[item.name].marked_delete:
-                packagestoremove.append(self.classnetwork.JSONReader.getInternalFromName(item.name, "apt"))
+        if package.endswith(".deb"):
+            if self.classnetwork.AppView._deb.check():
+                package2 = self.classnetwork.AppView._deb.pkgname
+                (draftinstall, draftremove, draftunauthenticated) = self.classnetwork.AppView._deb.required_changes
+                for item in draftinstall:
+                    packagestoinstall.append(self.classnetwork.JSONReader.getInternalFromName(item, "apt"))
+                for item in draftremove:
+                    packagestoremove.append(self.classnetwork.JSONReader.getInternalFromName(item, "apt"))
+        else:
+            package2 = self.classnetwork.JSONReader.getNameFromInternal(package, "apt")
+            if package2 == None:
+                package2 = package #Fall back to package name if it isn't a known package
+            if package2 == "debfile":
+                package2 = self.classnetwork.AppView._deb.pkgname
+            if operationtype == "install":
+                apt_cache[package2].mark_install(True)
+            elif operationtype == "upgrade":
+                apt_cache[package2].mark_upgrade(True)
+            elif operationtype == "remove":
+                apt_cache[package2].mark_delete(True)
+            for item in apt_cache:
+                if apt_cache[item.name].marked_install:
+                    packagestoinstall.append(self.classnetwork.JSONReader.getInternalFromName(item.name, "apt"))
+                elif apt_cache[item.name].marked_upgrade:
+                    packagestoupgrade.append(self.classnetwork.JSONReader.getInternalFromName(item.name, "apt"))
+                elif apt_cache[item.name].marked_delete:
+                    packagestoremove.append(self.classnetwork.JSONReader.getInternalFromName(item.name, "apt"))
+        
         return(packagestoinstall, packagestoupgrade, packagestoremove)
 
     def install_package(self, packagename):
@@ -97,7 +111,10 @@ class APTMgmt():
         ChangesConfirmDialog(packagename, "install", self.classnetwork, packagesinstalled, packagesupgraded, packagesremoved, self, "apt")
         
     def confirm_install_package(self, packagename):
-        self.classnetwork.TasksMgmt.add_task("apt:inst:"+packagename)
+        if packagename.endswith(".deb"):
+            self.classnetwork.TasksMgmt.add_task("aptdeb:inst:"+packagename)
+        else:
+            self.classnetwork.TasksMgmt.add_task("apt:inst:"+packagename)
         self.classnetwork.TasksMgmt.start_now()
 
     def upgrade_package(self, packagename):
@@ -133,7 +150,10 @@ class APTMgmt():
         ChangesConfirmDialog(packagename, "remove", self.classnetwork, packagesinstalled, packagesupgraded, packagesremoved, self, "apt")
         
     def confirm_remove_package(self, packagename):
-        self.classnetwork.TasksMgmt.add_task("apt:rm:"+packagename)
+        if packagename == "debfile":
+            self.classnetwork.TasksMgmt.add_task("apt:rm:"+self.classnetwork.AppView._deb.pkgname)
+        else:
+            self.classnetwork.TasksMgmt.add_task("apt:rm:"+packagename)
         self.classnetwork.TasksMgmt.start_now()
 
     def on_error(self, error, package):

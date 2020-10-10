@@ -559,9 +559,14 @@ if sys.argv[1] == "apt":
             exit(0)
     
     def apt_install():
-        aptmgmt.apt_client.install_packages(aptmgmt.packages,
-                                    reply_handler=aptmgmt.confirm_changes,
-                                    error_handler=aptmgmt.on_error) # dbus.DBusException
+        if aptmgmt.packages[0].endswith(".deb"):
+            aptmgmt.apt_client.install_file(aptmgmt.packages[0],
+                                        reply_handler=aptmgmt.confirm_changes,
+                                        error_handler=aptmgmt.on_error) # dbus.DBusException
+        else:
+            aptmgmt.apt_client.install_packages(aptmgmt.packages,
+                                        reply_handler=aptmgmt.confirm_changes,
+                                        error_handler=aptmgmt.on_error) # dbus.DBusException
     
 
     def apt_upgrade():

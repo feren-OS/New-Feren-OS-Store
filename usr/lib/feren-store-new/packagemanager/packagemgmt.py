@@ -83,6 +83,7 @@ if sys.argv[1] == "flatpak":
             self.taskstbremoved = {}
 
             self.flatpakoverridesiceaccess = ["org.mozilla.firefox"]
+            self.flatpakoverridesonlyadwaita = ["org.mozilla.firefox"]
             
             if self.superuser == True:
                 self.flatpakclassthing = Flatpak.Installation.new_system()
@@ -333,8 +334,11 @@ if sys.argv[1] == "flatpak":
                     print(math.floor(((self.current_count * (1.0/self.item_count)) * 100.0)))
 
                     #Flatpak overrides - ICE profiles folder access
-                    if ref.get_name() in self.flatpakoverridesiceaccess:
-                        os.system("/usr/bin/flatpak override "+ref.get_name()+" --filesystem=~/.local/share/feren-store-ice")
+                    if ref in self.flatpakoverridesiceaccess:
+                        os.system("/usr/bin/flatpak override "+ref+" --filesystem=~/.local/share/feren-store-ice")
+                    #Flatpak overrides - only Adwaita
+                    if ref in self.flatpakoverridesonlyadwaita:
+                        os.system("/usr/bin/flatpak override "+ref+" --env=GTK_THEME='Adwaita'")
 
             for remote in self.taskstbremoved:
                 for ref in self.taskstbremoved[remote]:

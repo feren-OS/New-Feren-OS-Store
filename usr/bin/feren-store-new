@@ -1026,11 +1026,14 @@ class AppView(WebKit2.WebView):
         self.back_btn = None
         #self.set_zoom_level(0.90)
 
+        #For the back button
+        #TODO: Check this more rigorously
+        self.back_button_history = ["home.html"]
+
         self.back_signal_handler = None
         
         self.current_package = ""
-        
-        self.add_buttons = True
+    
         
     def on_load_status_change(download, status):
         print(download, status)
@@ -1108,15 +1111,27 @@ class AppView(WebKit2.WebView):
         if bg_color in ["#000", "#000000"]:
             app.update_page("body", "addClass", "bg-is-black")
 
+    def toggle_back(self, newstate):
+        backbtnthread = Thread(target=self._toggle_back,
+                            args=(newstate,))
+        backbtnthread.start()
+    
+    def _toggle_back(self, newstate):
+        GLib.idle_add(self.__toggle_back, newstate)
+    
+    def __toggle_back(self, newstate):
+        self.back_btn.set_sensitive(newstate)
+
     def _back_action(self, data):
-        self.add_buttons = False
-        self.go_back()
+        self.toggle_back(False)
+        #Remove from back history
+        self.back_button_history = self.back_button_history[:-1]
+        self.run_javascript('gotopage("'+self.back_button_history[-1]+'")')
         
     def _goto_page(self, page):
         #file = os.path.abspath(os.path.join(translations.get_pages_path(), page+".html"))
         file = os.path.abspath(os.path.join("/usr/share/feren-store-new/"+page+".html"))
         uri = 'file://' + urllib.request.pathname2url(file)
-        self.add_buttons = True
         self.load_uri(uri)
         
     def _goto_packageview(self, packagename):
@@ -1129,12 +1144,12 @@ class AppView(WebKit2.WebView):
     def _generate_apps_list(self, category):
         #TODO: Make it category-specific
         for package in classnetwork.JSONReader.internalpkgnames:
-            app.run_javascript('mkbutton("'+category+package+'")')
+            app._run_javascript('mkbutton("'+category+package+'")')
 
     def _generate_websites_list(self, category):
         #TODO: Make it category-specific
         for package in classnetwork.JSONReader.icedata:
-            app.run_javascript('mkbutton("'+category+package+'")')
+            app._run_javascript('mkbutton("'+category+package+'")')
 
     def update_insite_information(self, packagename, packagetype):
         #Update in-page items
@@ -1189,9 +1204,7 @@ class AppView(WebKit2.WebView):
         current_page = app.current_page
         
         if current_page == "home.html":
-            self.back_btn.set_sensitive(False)
-        else:
-            self.back_btn.set_sensitive(True)
+            self.back_button_history = ["home.html"]
 
         #Show Welcome banner in Store
         #if systemstate.first_run:
@@ -1257,10 +1270,9 @@ class AppView(WebKit2.WebView):
             classnetwork.StoreWindow.gothemes_btn.set_visible(True)
             classnetwork.StoreWindow.gowebsites_btn.set_visible(True)
             
-            if self.add_buttons == True:
-                applistthread = Thread(target=self._generate_apps_list,
-                                    args=("",))
-                applistthread.start()
+            applistthread = Thread(target=self._generate_apps_list,
+                                args=("",))
+            applistthread.start()
             classnetwork.AppDetailsHeader.set_visible(False)
         elif current_page == 'themespage.html':
             classnetwork.StoreWindow.gothemes_btn.handler_block(classnetwork.StoreWindow.gothemes_handle_id)
@@ -1283,10 +1295,9 @@ class AppView(WebKit2.WebView):
             classnetwork.StoreWindow.gowebsites_btn.set_visible(True)
             classnetwork.AppDetailsHeader.set_visible(False)
             
-            if self.add_buttons == True:
-                weblistthread = Thread(target=self._generate_websites_list,
-                                    args=("feren-ice-ssb-",))
-                weblistthread.start()
+            weblistthread = Thread(target=self._generate_websites_list,
+                                args=("feren-ice-ssb-",))
+            weblistthread.start()
         elif current_page.startswith('packagepage.html'):
             classnetwork.StoreWindow.gohome_btn.set_visible(False)
             classnetwork.StoreWindow.goapps_btn.set_visible(False)
@@ -1305,15 +1316,25 @@ class AppView(WebKit2.WebView):
 
         #if current_page == 'home':
             #systemstate.first_run = False
-            
-        self.back_signal_handler = self.back_btn.connect("clicked", self._back_action)
 
     def _load_changed_cb(self, view, frame):
         self.refresh_gtk_colors()
         uri = str(self.get_uri())
+        
         #By making this only run on a fully loaded page we prevent this thing running multiple times in one page load
         if self.get_estimated_load_progress() == 1.0:
-            self.mainwindowstack.set_visible_child(self.mainwindow)
+            self.toggle_back(uri.rsplit('/', 1)[1] != "home.html")
+            #Add page to history if it isn't the latest page in history
+            if self.back_button_history[-1] != uri.rsplit('/', 1)[1] and uri.rsplit('/', 1)[1] != "splash.html":
+                self.back_button_history.append(uri.rsplit('/', 1)[1])
+                
+
+            if uri.rsplit('/', 1)[1] == "splash.html":
+                self.back_button_history = ["home.html"]
+                self.run_javascript('gotopage("'+classnetwork.StoreWindow._start_page+'")')
+                return
+            else:
+                self.mainwindowstack.set_visible_child(self.mainwindow)
             app.current_page = uri.rsplit('/', 1)[1]
             self._push_config()
 
@@ -1498,76 +1519,110 @@ class ClassNetwork():
     #TODO: Add this
 
 
-####Store Window
-class StoreWindow(object):
-    
-    def check_arguments(self):
+class Arguments(object):
+    '''Check arguments passed the application.'''
+
+    def __init__(self):
         self.settings_only = False
         self.simulate_arch = None
         self.simulate_no_connection = False
         self.simulate_force_connection = False
         self.simulate_type = None
         self.jump_to_package = False
+        self.jump_to_file = False
 
-        for arg in sys.argv:
-            if arg == '--help' or arg == '-h':
-                print('\nUsage: feren-store-new [arguments]')
-                #     | Command                      | Help Text                                     |
-                print('  (DEB file goes here)       Open a DEB file in the Feren Store')
-                print('  --settings                   Just open Store Settings')
-                print('  -h, --help                   Show this help text')
-                print('  --simul-arch=ARCH            Simulate a specific architecture.')
-                print('                                -- Options: i386, amd64')
-                print('  --simul-net                  Simulate a working internet connection.')
-                print('  --simul-no-net               Simulate no internet connection.')
-                print('  --simul-type=TYPE            Simulate a specific Feren OS type')
-                print('                                -- Options: stock, classic')
-                print('  (package name goes here)     Jump to an application, by its package name, in the Store')
-                print('  -V, --version                Version information')
-                print('')
-                exit()
-              
-            elif arg == "--settings":
-                print("Opening Feren Store settings...")
-                self.settings_only = True
-                
-            elif arg.startswith("--simul-arch"):
-                self.simulate_arch = arg.split('--simul-arch=')[1]
-                if not self.simulate_arch == "i386" and not self.simulate_arch == "amd64":
-                    print("Unrecognised Architecture:", self.simulate_arch)
-                    exit()
-            
-            elif arg == '--force-no-net':
-                self.simulate_no_connection = True
+        if len(sys.argv) < 2:
+            return
 
-            elif arg == '--force-net':
-                self.simulate_force_connection = True
-
-            elif arg.startswith('--simul-type'):
-                self.simulate_version = arg.split('--simul-type=')[1]
-                if not self.simulate_arch == "stock" and not self.simulate_arch == "classic":
-                    print("Unrecognised Feren OS Type:", self.simulate_arch)
-                    exit()
-                    
-            elif arg == "-V" or arg == "--version":
-                print("Not implemented yet.")
-                exit()
-            
-            else:
-                print("Not implemented yet.")
-
-
-    def __init__(self):
+        if sys.argv[1] == '--help' or sys.argv[1] == '-h':
+            print('\nUsage: feren-store-new [arguments]')
+            #     | Command                      | Help Text                                     |
+            print('  (DEB file goes here)       Open a DEB file in the Feren Store')
+            print('  --settings                   Just open Store Settings')
+            print('  -h, --help                   Show this help text')
+            print('  --simul-arch=ARCH            Simulate a specific architecture.')
+            print('                                -- Options: i386, amd64')
+            print('  --simul-net                  Simulate a working internet connection.')
+            print('  --simul-no-net               Simulate no internet connection.')
+            print('  --simul-type=TYPE            Simulate a specific Feren OS type')
+            print('                                -- Options: stock, classic')
+            print('  (package name goes here)     Jump to an application, by its package name, in the Store')
+            print('  -V, --version                Version information')
+            print('')
+            exit()
         
-        self.check_arguments()
+        elif sys.argv[1] == "--settings":
+            print("Opening Feren Store settings...")
+            self.settings_only = True
+            
+        elif sys.argv[1].startswith("--simul-arch"):
+            self.simulate_arch = sys.argv[1].split('--simul-arch=')[1]
+            if not self.simulate_arch == "i386" and not self.simulate_arch == "amd64":
+                print("Unrecognised Architecture:", self.simulate_arch)
+                exit()
+        
+        elif sys.argv[1] == '--force-no-net':
+            self.simulate_no_connection = True
+
+        elif sys.argv[1] == '--force-net':
+            self.simulate_force_connection = True
+
+        elif sys.argv[1].startswith('--simul-type'):
+            self.simulate_version = sys.argv[1].split('--simul-type=')[1]
+            if not self.simulate_arch == "stock" and not self.simulate_arch == "classic":
+                print("Unrecognised Feren OS Type:", self.simulate_arch)
+                exit()
+                
+        elif sys.argv[1] == "-V" or sys.argv[1] == "--version":
+            print("Not implemented yet.")
+            exit()
+        
+        elif sys.argv[1].endswith(".deb") and os.path.isfile(sys.argv[1]):
+            print("Go to DEB", sys.argv[1])
+            self.jump_to_file = True
+        elif sys.argv[1].endswith(".flatpakref") and os.path.isfile(sys.argv[1]):
+            print("Go to FlatpakRef", sys.argv[1])
+            self.jump_to_file = True
+        else:
+            print("Go to Package?", sys.argv[1])
+            self.jump_to_package = True
+
+
+####Store Window
+class StoreWindow(object):
+    def __init__(self):
 
         self.current_page = ""
 
         #systemstate.first_run = self._check_first_run()
         #systemstate.first_run = True
 
-        self._start_page = 'home.html'
-        #TODO: Add redirect to package page if jump_to_package is True
+        if arg.jump_to_file == True and sys.argv[1].endswith(".deb"):
+            self._start_page = 'packagepage.html?package=debfile'
+        elif arg.jump_to_file == True and sys.argv[1].endswith(".flatpakref"):
+            self._start_page = 'packagepage.html?package=flatpakfile'
+        elif arg.jump_to_package == True:
+            try: #first try to check it's the internal name
+                test = classnetwork.JSONReader.internalpkgnames[sys.argv[1]]
+                self._start_page = 'packagepage.html?package='+sys.argv[1]
+            except:
+                #Now try Appstream, then APT, then Flatpak then Snap
+                if classnetwork.JSONReader.getInternalFromName(sys.argv[1], "appstream") != None:
+                    self._start_page = 'packagepage.html?package='+classnetwork.JSONReader.getInternalFromName(sys.argv[1], "appstream")
+                elif classnetwork.JSONReader.getInternalFromName(sys.argv[1], "apt") != None:
+                    self._start_page = 'packagepage.html?package='+classnetwork.JSONReader.getInternalFromName(sys.argv[1], "apt")
+                elif classnetwork.JSONReader.getInternalFromName(sys.argv[1], "flatpak") != None:
+                    self._start_page = 'packagepage.html?package='+classnetwork.JSONReader.getInternalFromName(sys.argv[1], "flatpak")
+                elif classnetwork.JSONReader.getInternalFromName(sys.argv[1], "snap") != None:
+                    self._start_page = 'packagepage.html?package='+classnetwork.JSONReader.getInternalFromName(sys.argv[1], "snap")
+                else:
+                    try: #finally check if it's an ICE package
+                        test = classnetwork.JSONReader.icedata[sys.argv[1].split("feren-ice-ssb-")[1]]
+                        self._start_page = 'packagepage.html?package='+sys.argv[1]
+                    except: #If all of those are exausted, let's just go to the home page.
+                        self._start_page = 'home.html'
+        else:
+            self._start_page = 'home.html'
         
         classnetwork.StoreWindow = self
 
@@ -1585,7 +1640,7 @@ class StoreWindow(object):
         mainwindow.pack_start(maintoolbar, False, True, 0)
         mainwindow.pack_start(box_application_header, False, True, 0)
         mainwindow.pack_end(b, True, True, 0)
-        file = os.path.abspath(os.path.join("/usr/share/feren-store-new/"+self._start_page))
+        file = os.path.abspath(os.path.join("/usr/share/feren-store-new/splash.html"))
         uri = 'file://' + urllib.request.pathname2url(file)
         mv.load_uri(uri)
         self.w.show_all()
@@ -1802,6 +1857,7 @@ class StoreWindow(object):
         mv.set_zoom_level(1.0)
 
         mv.back_btn = back_btn
+        mv.back_signal_handler = mv.back_btn.connect("clicked", mv._back_action)
         mv.header = header
         
         #handle_id is needed to block events as otherwise the button active state changes cause button press events to occur (for whatever stupid reason) which ultimately leads to a Stack Overflow as the event code retriggers the event by triggering the button press yet again looping the cycle indefinitely
@@ -1894,13 +1950,18 @@ class StoreWindow(object):
             self.run_javascript('$("' + element + '").' + function + '()')
 
     def run_javascript(self, script):
+        thread = Thread(target=self._run_javascript,
+                        args=(script,))
+        thread.start()
+
+    def _run_javascript(self, script):
         """
         Runs a JavaScript function on the page, regardless of which thread it is called from.
         GTK+ operations must be performed on the same thread to prevent crashes.
         """
-        GLib.idle_add(self._run_javascript, script)
+        GLib.idle_add(self.__run_javascript, script)
 
-    def _run_javascript(self, script):
+    def __run_javascript(self, script):
         """
         Runs a JavaScript script on the page when invoked from run_javascript()
         """
@@ -1945,6 +2006,8 @@ else:
         pidfile.close()
 
 if __name__ == "__main__":
+
+    arg = Arguments()
 
     # Local data directory to store backup info
     localdir = os.path.expanduser('~') + '/.config/feren-store'

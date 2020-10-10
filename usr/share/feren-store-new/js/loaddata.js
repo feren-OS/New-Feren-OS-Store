@@ -22,6 +22,10 @@
 //     xmlhttp.send();
 // }
 
+function gotopage(pagename) {
+    window.location.href = (pagename);
+}
+
 function gotopackage(packagename) {
     window.location.href = ("packagepage.html?package="+packagename);
 }

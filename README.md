@@ -19,7 +19,7 @@ Ideas I want to implement into this application:
 - [x] Flatpak support
 - [x] Snap support
 - [x] ICE SSBs Support
-- [ ] Add custom messages to command-not-found
+- [x] Add custom messages to command-not-found (nevermind, just used MITMs)
 - [ ] Add FYI dialog when opening DEBs for packages already in the Store
 - [ ] Support for KDE Store
 - [x] Separate Games and Themes sections

@@ -114,7 +114,7 @@ class FlatpakMgmt():
         thread.start()
         
     def _install_package(self, packagename, userland):
-        packagesinstalled, packagesupgraded, packagesremoved = self.check_real_changes(packagename, "install")
+        packagesinstalled, packagesupgraded, packagesremoved = self.check_real_changes(packagename, "install", userland)
         #Who at GTK's team thought needing to go through this mess was adequate for Python code?
         GLib.idle_add(self.__install_package, packagesinstalled, packagesupgraded, packagesremoved, packagename, userland)
         
@@ -123,7 +123,7 @@ class FlatpakMgmt():
         ChangesConfirmDialog(packagename, "install", self.classnetwork, packagesinstalled, packagesupgraded, packagesremoved, self, "flatpak")
         
     def confirm_install_package(self, packagename):
-        if userland == True:
+        if self.userland == True:
             self.classnetwork.TasksMgmt.add_task("flatpak:localinst:"+packagename)
         else:
             self.classnetwork.TasksMgmt.add_task("flatpak:inst:"+packagename)
@@ -136,16 +136,16 @@ class FlatpakMgmt():
         thread.start()
         
     def _upgrade_package(self, packagename, userland):
-        packagesinstalled, packagesupgraded, packagesremoved = self.check_real_changes(self.packagename, "upgrade")
+        packagesinstalled, packagesupgraded, packagesremoved = self.check_real_changes(packagename, "upgrade", userland)
         #Who at GTK's team thought needing to go through this mess was adequate for Python code?
         GLib.idle_add(self.__upgrade_package, packagesinstalled, packagesupgraded, packagesremoved, packagename, userland)
         
     def __upgrade_package(self, packagesinstalled, packagesupgraded, packagesremoved, packagename, userland):
         self.userland = userland
-        ChangesConfirmDialog(self.packagename, "upgrade", self.classnetwork, packagesinstalled, packagesupgraded, packagesremoved, self, "flatpak")
+        ChangesConfirmDialog(packagename, "upgrade", self.classnetwork, packagesinstalled, packagesupgraded, packagesremoved, self, "flatpak")
         
     def confirm_upgrade_package(self, packagename):
-        if userland == True:
+        if self.userland == True:
             self.classnetwork.TasksMgmt.add_task("flatpak:localupgr:"+packagename)
         else:
             self.classnetwork.TasksMgmt.add_task("flatpak:upgr:"+packagename)
@@ -158,16 +158,16 @@ class FlatpakMgmt():
         thread.start()
         
     def _remove_package(self, packagename, userland):
-        packagesinstalled, packagesupgraded, packagesremoved = self.check_real_changes(self.packagename, "remove")
+        packagesinstalled, packagesupgraded, packagesremoved = self.check_real_changes(packagename, "remove", userland)
         #Who at GTK's team thought needing to go through this mess was adequate for Python code?
-        GLib.idle_add(self.__remove_package, packagesinstalled, packagesupgraded, packagesremoved)
+        GLib.idle_add(self.__remove_package, packagesinstalled, packagesupgraded, packagesremoved, packagename, userland)
         
-    def __remove_package(self, packagesinstalled, packagesupgraded, packagesremoved):
+    def __remove_package(self, packagesinstalled, packagesupgraded, packagesremoved, packagename, userland):
         
-        ChangesConfirmDialog(self.packagename, "remove", self.classnetwork, packagesinstalled, packagesupgraded, packagesremoved, self, "flatpak")
+        ChangesConfirmDialog(packagename, "remove", self.classnetwork, packagesinstalled, packagesupgraded, packagesremoved, self, "flatpak")
         
     def confirm_remove_package(self, packagename):
-        if userland == True:
+        if self.userland == True:
             self.classnetwork.TasksMgmt.add_task("flatpak:localrm:"+packagename)
         else:
             self.classnetwork.TasksMgmt.add_task("flatpak:rm:"+packagename)

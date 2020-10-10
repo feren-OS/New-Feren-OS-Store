@@ -1789,7 +1789,7 @@ class StoreWindow(object):
         back_btn.set_name("back-btn")
         
         status_img = Gtk.Image()
-        status_img.set_from_icon_name("get-hot-new-stuff", Gtk.IconSize.BUTTON);
+        status_img.set_from_icon_name("folder-download-symbolic", Gtk.IconSize.BUTTON);
         self.status_btn = Gtk.ToggleButton(image=status_img)
         self.status_btn.set_name("status-btn")
         self.status_btn.set_always_show_image(True)

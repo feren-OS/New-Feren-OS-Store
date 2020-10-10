@@ -405,6 +405,7 @@ class TasksMgmt(object):
         
     def do_task(self, task):
         self.currenttask = task
+        print("Working on", task)
         #Code for doing the task
         classnetwork.AppDetailsHeader.switch_source(classnetwork.AppDetailsHeader.current_package, classnetwork.AppDetailsHeader.current_package_type, False)
         if task.startswith("apt:inst:"):

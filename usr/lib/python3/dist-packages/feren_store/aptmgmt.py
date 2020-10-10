@@ -132,7 +132,10 @@ class APTMgmt():
         ChangesConfirmDialog(packagename, "upgrade", self.classnetwork, packagesinstalled, packagesupgraded, packagesremoved, self, "apt")
         
     def confirm_upgrade_package(self, packagename):
-        self.classnetwork.TasksMgmt.add_task("apt:upgr:"+packagename)
+        if packagename == "debfile":
+            self.classnetwork.TasksMgmt.add_task("apt:upgr:"+self.classnetwork.AppView._deb.pkgname)
+        else:
+            self.classnetwork.TasksMgmt.add_task("apt:upgr:"+packagename)
         self.classnetwork.TasksMgmt.start_now()
 
     def remove_package(self, packagename):

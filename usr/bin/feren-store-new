@@ -259,8 +259,8 @@ class PackageTile(Gtk.Button):
 
         app_title, app_desc, app_iconurl = classnetwork.JSONReader.getPackageInfo(packagename, packagetype)
         if (app_title, app_desc, app_iconurl) == (None, None, None):
-            if packagetype == "apt": #Assume it's a DEB file, though TODO change this to match for unknown packages that aren't DEBs as well if this ever supports showing all packages
-                app_title, app_desc, app_iconurl = classnetwork.AppView._deb.pkgname, "Package File", "file://"+RetrieveIconSize.set_icon_string("application-x-deb", 256)
+            if packagetype == "apt": #Assume it's a DEB file or an unknown package
+                app_title, app_desc, app_iconurl = classnetwork.AppView._deb.pkgname, "Standard Package", "file://"+RetrieveIconSize.set_icon_string("application-x-deb", 256)
                 classnetwork.TasksMgmt.candirecttopkg = False
             else:
                 raise Exception("Couldn't get metadata for tile for", packagename, packagetype)
@@ -1305,7 +1305,7 @@ class AppView(WebKit2.WebView):
             elif packagetoview == "debfile":
                 import apt.debfile
                 self._deb = apt.debfile.DebPackage(sys.argv[1], None)
-                app_title, app_desc, app_iconurl = self._deb.pkgname, "Package File", "file://"+RetrieveIconSize.set_icon_string("application-x-deb", 256)
+                app_title, app_desc, app_iconurl = self._deb.pkgname, "Standard Package", "file://"+RetrieveIconSize.set_icon_string("application-x-deb", 256)
                 classnetwork.AppDetailsHeader.set_app_details(app_title, app_desc)
                 classnetwork.AppDetailsHeader.set_package_type("apt")
 

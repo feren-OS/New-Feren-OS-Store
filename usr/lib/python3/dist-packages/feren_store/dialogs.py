@@ -36,6 +36,7 @@ class DEBCheckDialog():
     ###Dialog to let people know that their DEB is a package already in the Store, if it is so
 
     def __init__(self, packagename, optype, classnetwork, packagesinstalled, packagesupgraded, packagesremoved, pkgmgmt, pkgtype):
+        #TODO: Work on this thing, and find a way to make the flatpak-themelock thingy run when packages have been managed if not already running, unless a better method is found by then
         self.classnetwork = classnetwork
         self.packagename = packagename
         self.pkgmgmt = pkgmgmt

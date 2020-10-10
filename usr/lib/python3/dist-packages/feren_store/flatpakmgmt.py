@@ -157,7 +157,7 @@ class FlatpakMgmt():
         thread.daemon = True
         thread.start()
         
-    def _remove_package(self):
+    def _remove_package(self, packagename, userland):
         packagesinstalled, packagesupgraded, packagesremoved = self.check_real_changes(self.packagename, "remove")
         #Who at GTK's team thought needing to go through this mess was adequate for Python code?
         GLib.idle_add(self.__remove_package, packagesinstalled, packagesupgraded, packagesremoved)
